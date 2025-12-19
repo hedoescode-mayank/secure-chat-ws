@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Secure Room Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  margin: 0;
+  background: #020617;
+  color: #e5e7eb;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.chat {
+  width: 360px;
+  height: 520px;
+  background: #020617;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #1e293b;
+  font-weight: bold;
+}
+
+.messages {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.msg {
+  max-width: 75%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.sent { background: #2563eb; align-self: flex-end; }
+.recv { background: #1e293b; align-self: flex-start; }
+
+.input {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #1e293b;
+}
+
+input {
+  flex: 1;
+  background: #020617;
+  border: 1px solid #1e293b;
+  color: white;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+button {
+  background: #2563eb;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.timer {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+#bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.chat {
+  position: relative;
+  z-index: 10;
+}
+#bear {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  font-size: 48px;
+  animation: floatBear 4s ease-in-out infinite;
+  z-index: 1;
+}
+
+.bear-text {
+  font-size: 14px;
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+@keyframes floatBear {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+</style>
+</head>
+
+<body>
+<div id="bg"></div>
+<div id="bear">
+  🐻
+  <div class="bear-text">chips khao maje karo ,masti naa kare jii naa kare🔒</div>
+</div>
+
+<div class="chat">
+  <div class="header">🔒 Encrypted Room</div>
+  <div id="messages" class="messages"></div>
+  <div class="input">
+    <input id="text" placeholder="Type message…" />
+    <button id="sendBtn" onclick="sendMsg()">Send</button>
+  </div>
+</div>
+
+<script>
+/* ---------- ROOM GENERATION ---------- */
+if (!location.hash) {
+  const room = crypto.randomUUID().slice(0,8);
+  location.hash = "room=" + room;
+}
+
+const roomId = location.hash.replace("#room=", "");
+document.querySelector(".header").textContent = "🔒 Room: " + roomId;
+
+/* ---------- CRYPTO ---------- */
+let key;
+let keyReady = false;
+const salt = new TextEncoder().encode("secure-room-salt");
+
+(async () => {
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(roomId),
+    "PBKDF2",
+    false,
+    ["deriveKey"]
+  );
+
+  key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+  keyReady = true;
+  document.getElementById("sendBtn").disabled = false;
+})();
+
+/* ---------- WEBSOCKET ---------- */
+let socket;
+try {
+  socket = new WebSocket("ws://localhost:4000");
+  socket.onopen = () => console.log("Connected");
+  socket.onmessage = async (e) => {
+    const decrypted = await decrypt(JSON.parse(e.data));
+    addMsg(decrypted, "recv");
+  };
+} catch (err) {
+  console.warn("WebSocket unavailable:", err);
+}
+
+async function encrypt(text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(text)
+  );
+  return { iv: [...iv], data: [...new Uint8Array(enc)] };
+}
+
+async function decrypt(payload) {
+  const dec = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(payload.iv) },
+    key,
+    new Uint8Array(payload.data)
+  );
+  return new TextDecoder().decode(dec);
+}
+
+/* ---------- UI ---------- */
+function addMsg(text, cls) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+
+  const content = document.createElement("div");
+  content.textContent = text;
+
+  const timer = document.createElement("div");
+  timer.className = "timer";
+
+  d.appendChild(content);
+  d.appendChild(timer);
+  document.getElementById("messages").appendChild(d);
+  document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+
+  let time = 40;
+  timer.textContent = `Deletes in ${time}s`;
+
+  const interval = setInterval(() => {
+    time--;
+    timer.textContent = `Deletes in ${time}s`;
+
+    if (time <= 0) {
+      clearInterval(interval);
+      d.remove();
+    }
+  }, 1000);
+}
+
+
+async function sendMsg() {
+  if (!keyReady) {
+    console.warn("Encryption key not ready");
+    return;
+  }
+  const input = document.getElementById("text");
+  if (!input.value) return;
+
+  addMsg(input.value, "sent");
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(await encrypt(input.value)));
+  }
+  input.value = "";
+}
+</script>
+
+</body>
+</html>
