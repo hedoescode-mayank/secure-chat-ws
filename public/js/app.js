@@ -35,7 +35,7 @@ class App {
   }
 
   async startTerminal() {
-    document.getElementById("terminal").style.display = "block";
+    document.getElementById("terminal").style.display = "flex";
     document.querySelector(".prompt-container").style.display = "flex";
     document.getElementById("input").focus();
 

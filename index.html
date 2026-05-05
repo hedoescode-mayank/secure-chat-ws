@@ -4,21 +4,150 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecureChat-OS | Encrypted CLI</title>
-    <link rel="stylesheet" href="public/css/terminal.css">
-    <link rel="stylesheet" href="public/css/animations.css">
-    <link rel="stylesheet" href="public/css/glassmorphism.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --terminal-bg: #050505;
+            --terminal-green: #00ff41;
+            --terminal-dim: #003b00;
+            --terminal-text: #d0d0d0;
+            --terminal-glow: rgba(0, 255, 65, 0.3);
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        body, html {
+            background-color: var(--terminal-bg);
+            color: var(--terminal-text);
+            font-family: var(--font-mono);
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Nickname Box Styling */
+        #nickname-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, rgba(0, 40, 0, 0.2) 0%, rgba(0,0,0,1) 100%);
+            z-index: 1000;
+        }
+
+        .nickname-box {
+            width: 450px;
+            border: 1px solid var(--terminal-green);
+            background: #000;
+            box-shadow: 0 0 30px var(--terminal-glow);
+            animation: flicker 0.15s infinite alternate;
+        }
+
+        .box-header {
+            background: var(--terminal-green);
+            color: #000;
+            padding: 8px;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 2px;
+            font-size: 14px;
+        }
+
+        .box-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .box-body p {
+            color: var(--terminal-green);
+            font-size: 12px;
+            margin-bottom: 25px;
+            opacity: 0.8;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--terminal-dim);
+            padding: 5px;
+        }
+
+        .prompt-symbol {
+            color: var(--terminal-green);
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #nickname-input {
+            background: transparent;
+            border: none;
+            color: var(--terminal-green);
+            font-family: var(--font-mono);
+            font-size: 18px;
+            width: 100%;
+            outline: none;
+            text-transform: uppercase;
+        }
+
+        .box-footer {
+            margin-top: 30px;
+            font-size: 10px;
+            color: var(--terminal-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Main Terminal Layout */
+        #terminal {
+            width: 100%;
+            height: calc(100% - 60px);
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+        }
+
+        .prompt-container {
+            height: 60px;
+            width: 100%;
+            display: none;
+            padding: 0 20px;
+            align-items: center;
+            background: rgba(0, 20, 0, 0.3);
+            border-top: 1px solid var(--terminal-dim);
+        }
+
+        .prompt-label { color: var(--terminal-green); margin-right: 15px; }
+        #input { background: transparent; border: none; color: #fff; font-family: var(--font-mono); font-size: 16px; outline: none; flex: 1; }
+
+        /* Effects */
+        .scanline {
+            width: 100%; height: 2px; background: rgba(0, 255, 65, 0.1);
+            position: fixed; top: 0; left: 0; z-index: 2000;
+            pointer-events: none; animation: scan 4s linear infinite;
+        }
+
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+        @keyframes flicker { from { opacity: 0.95; } to { opacity: 1; } }
+
+        .line { margin-bottom: 5px; line-height: 1.5; }
+        .system { color: var(--terminal-green); }
+        .user-msg { color: #fff; }
+        .info { color: #3e8eff; }
+    </style>
 </head>
 <body>
-    <div class="background-glow"></div>
-    <div class="crt-overlay"></div>
     <div class="scanline"></div>
 
-    <!-- Nickname Entry Box -->
     <div id="nickname-overlay">
-        <div class="nickname-box glass">
+        <div class="nickname-box">
             <div class="box-header">IDENTIFICATION REQUIRED</div>
             <div class="box-body">
                 <p>PLEASE ENTER YOUR ACCESS_ID TO INITIALIZE SECURE CHANNEL:</p>
@@ -31,13 +160,11 @@
         </div>
     </div>
 
-    <!-- Terminal UI -->
-    <main id="terminal" style="display: none;"></main>
+    <main id="terminal"></main>
 
-    <div class="prompt-container" style="display: none;">
+    <div class="prompt-container">
         <span class="prompt-label">user@secure-chat:~$</span>
         <input type="text" id="input" spellcheck="false" autocomplete="off">
-        <span class="cursor"></span>
     </div>
 
     <!-- Firebase SDK -->
