@@ -151,15 +151,9 @@
 
     <script>
         // --- 1. CONFIGURATION ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCRI0Oie0FMoh2cHBY3z42JW8LUmCqbuJM",
-            authDomain: "trex-ddaab.firebaseapp.com",
-            databaseURL: "https://trex-ddaab-default-rtdb.firebaseio.com",
-            projectId: "trex-ddaab",
-            storageBucket: "trex-ddaab.firebasestorage.app",
-            messagingSenderId: "250665471560",
-            appId: "1:250665471560:web:683b15cb1763371a24527d"
-        };
+        // Secrets redacted to resolve GitHub security warnings.
+        // Use the /config command in the terminal to set your keys.
+        let firebaseConfig = JSON.parse(localStorage.getItem("firebase_config") || "{}");
 
         // --- 2. CORE CRYPTO ---
         const CryptoUtils = {
@@ -241,10 +235,22 @@
                 document.getElementById("input").focus();
 
                 await this.terminal.boot();
-                this.terminal.print(`SECURE CHANNEL: ${this.roomId}`, "system");
-                document.querySelector(".prompt-label").textContent = `${this.username}@secure-chat$`;
+                
+                if (!firebaseConfig.apiKey) {
+                    this.terminal.print("!! SECURITY ALERT: FIREBASE_CONFIG_MISSING !!", "error");
+                    this.terminal.print("Please run /config <json_string> to initialize.", "info");
+                    this.terminal.print("Example: /config {\"apiKey\": \"...\", ...}", "info");
+                } else {
+                    this.terminal.print(`SECURE CHANNEL: ${this.roomId}`, "system");
+                    this.initFirebase();
+                }
 
-                // Firebase Init
+                document.querySelector(".prompt-label").textContent = `${this.username}@secure-chat$`;
+                await CryptoUtils.deriveKey(this.roomId);
+                this.setupInput();
+            }
+
+            initFirebase() {
                 try {
                     if (typeof firebase !== 'undefined') {
                         firebase.initializeApp(firebaseConfig);
@@ -252,9 +258,6 @@
                         this.setupFirebase();
                     }
                 } catch (e) { this.terminal.print("Network Error: Offline Mode Active", "error"); }
-
-                await CryptoUtils.deriveKey(this.roomId);
-                this.setupInput();
             }
 
             setupFirebase() {
@@ -275,6 +278,20 @@
                     if (e.key === "Enter" && input.value.trim()) {
                         const val = input.value.trim();
                         input.value = "";
+                        
+                        if (val.startsWith("/config ")) {
+                            try {
+                                const configStr = val.substring(8);
+                                JSON.parse(configStr); // Validate
+                                localStorage.setItem("firebase_config", configStr);
+                                this.terminal.print("Config saved. Refreshing...", "system");
+                                setTimeout(() => location.reload(), 1000);
+                            } catch (e) {
+                                this.terminal.print("Invalid JSON format.", "error");
+                            }
+                            return;
+                        }
+
                         this.terminal.print(`[${this.username}]: ${val}`, "user-msg");
                         if (this.db) {
                             const enc = await CryptoUtils.encrypt(val);
