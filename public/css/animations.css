@@ -1,0 +1,61 @@
+@keyframes scanline {
+  0% {
+    bottom: 100%;
+  }
+  80% {
+    bottom: 100%;
+  }
+  100% {
+    bottom: 0%;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.2em;
+  background-color: var(--terminal-green);
+  margin-left: 5px;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+}
+
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.glitch {
+  animation: glitch 0.3s cubic-bezier(.25,.46,.45,.94) both infinite;
+  animation-play-state: paused;
+}
+
+.glitch:hover {
+  animation-play-state: running;
+}
+
+.boot-text {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--terminal-green);
+  animation: typing 2s steps(40, end), blink-caret .75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent }
+  50% { border-color: var(--terminal-green); }
+}
