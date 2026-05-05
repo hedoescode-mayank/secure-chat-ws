@@ -270,6 +270,16 @@
                     if (e.key === "Enter" && input.value.trim()) {
                         const val = input.value.trim();
                         input.value = "";
+                        if (val.startsWith("/delete")) {
+                            this.terminal.print("PURGING ROOM DATA...", "error");
+                            if (this.db) {
+                                await this.db.ref(`rooms/${this.roomId}`).remove();
+                                this.terminal.print("DATA WIPED. REBOOTING...", "system");
+                                setTimeout(() => location.reload(), 2000);
+                            }
+                            return;
+                        }
+
                         this.terminal.print(`[${this.username}]: ${val}`, "user-msg");
                         if (this.db) {
                             const enc = await CryptoUtils.encrypt(val);
