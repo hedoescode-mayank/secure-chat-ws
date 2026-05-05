@@ -1,29 +1,19 @@
 const WebSocket = require("ws");
+const { PORT } = require("./config/constants");
+const { handleConnection } = require("./lib/socketHandler");
 
-const PORT = process.env.PORT || 4000;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocket.Server({ port: PORT }, () => {
+  console.log(`
+  =======================================
+  SecureChat-OS Backend v2.0.0
+  WebSocket server running on port: ${PORT}
+  =======================================
+  `);
+});
 
-let clients = [];
+wss.on("connection", handleConnection);
 
-console.log("WebSocket server running on port", PORT);
-
-wss.on("connection", ws => {
-  if (clients.length >= 2) {
-    ws.close();
-    return;
-  }
-
-  clients.push(ws);
-
-  ws.on("message", msg => {
-    clients.forEach(c => {
-      if (c !== ws && c.readyState === WebSocket.OPEN) {
-        c.send(msg.toString());
-      }
-    });
-  });
-
-  ws.on("close", () => {
-    clients = clients.filter(c => c !== ws);
-  });
+// Basic health check for the server
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
 });
