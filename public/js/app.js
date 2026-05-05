@@ -1,7 +1,8 @@
 class App {
   constructor() {
     this.terminal = new Terminal("terminal", "input");
-    this.socket = new SocketClient(`ws://${window.location.hostname}:4000`);
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    this.socket = new SocketClient(`${protocol}://${window.location.host}`);
     this.roomId = this.getRoomId();
     this.setupHandlers();
   }
