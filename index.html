@@ -96,6 +96,26 @@
             text-transform: uppercase;
         }
 
+        .auth-button {
+            margin-top: 20px;
+            background: transparent;
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+            padding: 10px 30px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .auth-button:hover {
+            background: var(--terminal-green);
+            color: #000;
+            box-shadow: 0 0 15px var(--terminal-glow);
+        }
+
         .box-footer {
             margin-top: 30px;
             font-size: 10px;
@@ -155,7 +175,8 @@
                     <span class="prompt-symbol">>></span>
                     <input type="text" id="nickname-input" autofocus maxlength="15" spellcheck="false" autocomplete="off">
                 </div>
-                <div class="box-footer">PRESS [ENTER] TO AUTHENTICATE</div>
+                <button id="auth-btn" class="auth-button">Authenticate</button>
+                <div class="box-footer">OR PRESS [ENTER]</div>
             </div>
         </div>
     </div>

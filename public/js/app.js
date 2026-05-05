@@ -21,17 +21,22 @@ class App {
   setupNicknameBox() {
     const overlay = document.getElementById("nickname-overlay");
     const input = document.getElementById("nickname-input");
+    const btn = document.getElementById("auth-btn");
+
+    const submit = () => {
+      const val = input.value.trim();
+      if (val) {
+        this.username = val;
+        overlay.style.display = "none";
+        this.startTerminal();
+      }
+    };
 
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        const val = input.value.trim();
-        if (val) {
-          this.username = val;
-          overlay.style.display = "none";
-          this.startTerminal();
-        }
-      }
+      if (e.key === "Enter") submit();
     });
+
+    if (btn) btn.addEventListener("click", submit);
   }
 
   async startTerminal() {
