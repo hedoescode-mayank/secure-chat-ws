@@ -1,8 +1,7 @@
 class App {
   constructor() {
     this.terminal = new Terminal("terminal", "input");
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    this.socket = new SocketClient(`${protocol}://${window.location.host}`);
+    this.service = new FirebaseService();
     this.roomId = this.getRoomId();
     this.username = "guest";
     this.peerName = "peer";
@@ -45,51 +44,39 @@ class App {
     this.terminal.setPrompt(`${this.username}@secure-chat:${this.roomId}$ `);
 
     await CryptoUtils.deriveKey(this.roomId);
-    this.socket.connect();
+    this.service.setRoom(this.roomId);
     this.setupHandlers();
+    
+    // Announce join
+    this.service.send("join", { username: this.username });
   }
 
   setupHandlers() {
-    this.socket.onOpenCallback = () => {
-      // Send username during join
-      this.socket.send("join", { 
-        roomId: this.roomId, 
-        username: this.username 
-      });
+    this.service.onMessageCallback = async (message) => {
+      if (message.sender === this.username) return; // Ignore own messages from DB
+
+      if (message.type === "chat") {
+        try {
+          const decrypted = await CryptoUtils.decrypt({ iv: message.iv, data: message.data });
+          this.terminal.print(`[${message.sender}]: ${decrypted}`, "user-msg");
+        } catch (e) {
+          this.terminal.print("Failed to decrypt incoming message", "error");
+        }
+      } else if (message.type === "delete_request") {
+        this.deleteRequestReceived = true;
+        this.terminal.print("!! Peer has requested to delete this room. Type /delete to confirm !!", "system");
+      }
     };
 
-    this.socket.onMessageCallback = async (message) => {
-      switch (message.type) {
-        case "chat":
-          try {
-            const decrypted = await CryptoUtils.decrypt({ iv: message.iv, data: message.data });
-            const sender = message.sender || this.peerName;
-            this.terminal.print(`[${sender}]: ${decrypted}`, "user-msg");
-          } catch (e) {
-            this.terminal.print("Failed to decrypt incoming message", "error");
-          }
-          break;
-
-        case "system":
-          this.terminal.print(message.text, "info");
-          break;
-
-        case "nick_update":
-          this.peerName = message.username;
-          if (!message.system) {
-            this.terminal.print(`Peer joined as: ${message.username}`, "info");
-          }
-          break;
-
-        case "delete_request":
-          this.deleteRequestReceived = true;
-          this.terminal.print("!! Peer has requested to delete this room. Type /delete to confirm !!", "system");
-          break;
-
-        case "delete_confirm":
-          this.confirmDeletion();
-          break;
+    this.service.onNickUpdateCallback = (data) => {
+      if (data.username !== this.username) {
+        this.peerName = data.username;
+        this.terminal.print(`Peer identity synced: ${data.username}`, "info");
       }
+    };
+
+    this.service.onDeleteCallback = () => {
+      this.confirmDeletion();
     };
 
     this.terminal.input.addEventListener("keydown", async (e) => {
@@ -107,7 +94,11 @@ class App {
         
         try {
           const encrypted = await CryptoUtils.encrypt(value);
-          this.socket.sendChat(encrypted.data, encrypted.iv, this.username);
+          this.service.send("chat", { 
+            data: encrypted.data, 
+            iv: encrypted.iv, 
+            sender: this.username 
+          });
         } catch (e) {
           this.terminal.print("Encryption failed", "error");
         }
@@ -118,9 +109,9 @@ class App {
   confirmDeletion() {
     this.terminal.clear();
     this.terminal.print("ROOM DELETED BY MUTUAL AGREEMENT", "system");
-    this.terminal.print("Connection terminated. Refresh to join a new room.", "info");
-    this.socket.socket.close();
+    this.terminal.print("Session terminated. Data purged.", "info");
     this.terminal.input.disabled = true;
+    this.service.clearRoom();
   }
 }
 

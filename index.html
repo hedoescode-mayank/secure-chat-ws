@@ -31,7 +31,7 @@
         </div>
     </div>
 
-    <!-- Terminal UI (Hidden until nickname is set) -->
+    <!-- Terminal UI -->
     <main id="terminal" style="display: none;"></main>
 
     <div class="prompt-container" style="display: none;">
@@ -40,9 +40,13 @@
         <span class="cursor"></span>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <!-- Scripts -->
     <script src="public/js/crypto.js"></script>
-    <script src="public/js/socket.js"></script>
+    <script src="public/js/firebase-service.js"></script>
     <script src="public/js/terminal.js"></script>
     <script src="public/js/commands.js"></script>
     <script src="public/js/app.js"></script>
