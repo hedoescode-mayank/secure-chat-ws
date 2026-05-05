@@ -1,12 +1,12 @@
-// Firebase Configuration - PASTE YOUR CONFIG HERE
+// Firebase Configuration - AUTO-CONFIGURED
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCRI0Oie0FMoh2cHBY3z42JW8LUmCqbuJM",
+  authDomain: "trex-ddaab.firebaseapp.com",
+  databaseURL: "https://trex-ddaab-default-rtdb.firebaseio.com",
+  projectId: "trex-ddaab",
+  storageBucket: "trex-ddaab.firebasestorage.app",
+  messagingSenderId: "250665471560",
+  appId: "1:250665471560:web:683b15cb1763371a24527d"
 };
 
 // Initialize Firebase
@@ -31,11 +31,12 @@ class FirebaseService {
 
   listenForMessages() {
     const messagesRef = db.ref(`rooms/${this.roomId}/messages`);
-    // Only listen for new messages (starting from now)
     const startTime = Date.now();
     messagesRef.orderByChild("timestamp").startAt(startTime).on("child_added", (snapshot) => {
       const msg = snapshot.val();
       if (this.onMessageCallback && msg.type === "chat") {
+        this.onMessageCallback(msg);
+      } else if (msg.type === "delete_request") {
         this.onMessageCallback(msg);
       }
     });
@@ -86,7 +87,6 @@ class FirebaseService {
     }
   }
 
-  // Cleanup room data after a delay if needed (optional)
   clearRoom() {
     db.ref(`rooms/${this.roomId}`).remove();
   }
