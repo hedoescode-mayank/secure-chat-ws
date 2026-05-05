@@ -244,6 +244,12 @@
                     if (typeof firebase !== 'undefined') {
                         firebase.initializeApp(firebaseConfig);
                         this.db = firebase.database();
+                        
+                        // Presence: Auto-remove name on disconnect
+                        const presenceRef = this.db.ref(`rooms/${this.roomId}/presence/${this.username}`);
+                        presenceRef.set({ online: true });
+                        presenceRef.onDisconnect().remove();
+
                         this.setupFirebase();
                     }
                 } catch (e) { this.terminal.print("Network Error: Offline Mode Active", "error"); }
@@ -270,6 +276,7 @@
                     if (e.key === "Enter" && input.value.trim()) {
                         const val = input.value.trim();
                         input.value = "";
+                        
                         if (val.startsWith("/delete")) {
                             this.terminal.print("PURGING ROOM DATA...", "error");
                             if (this.db) {
