@@ -1,0 +1,113 @@
+:root {
+  --terminal-bg: #0a0a0a;
+  --terminal-green: #00ff41;
+  --terminal-text: #e0e0e0;
+  --terminal-dim: #008f11;
+  --terminal-glow: rgba(0, 255, 65, 0.2);
+  --font-mono: 'Fira Code', 'Courier Prime', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--terminal-bg);
+  color: var(--terminal-text);
+  font-family: var(--font-mono);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#terminal {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-dim) transparent;
+}
+
+#terminal::-webkit-scrollbar {
+  width: 6px;
+}
+
+#terminal::-webkit-scrollbar-thumb {
+  background: var(--terminal-dim);
+}
+
+.line {
+  margin-bottom: 4px;
+  line-height: 1.4;
+  word-break: break-all;
+  text-shadow: 0 0 5px var(--terminal-glow);
+}
+
+.system {
+  color: var(--terminal-green);
+  font-weight: bold;
+}
+
+.error {
+  color: #ff3e3e;
+}
+
+.info {
+  color: #3e8eff;
+}
+
+.user-msg {
+  color: #fff;
+}
+
+.prompt-container {
+  display: flex;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: center;
+}
+
+.prompt-label {
+  color: var(--terminal-green);
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+#input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--terminal-text);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  outline: none;
+}
+
+.scanline {
+  width: 100%;
+  height: 100px;
+  z-index: 99;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0) 100%);
+  opacity: 0.1;
+  position: absolute;
+  bottom: 100%;
+  animation: scanline 6s linear infinite;
+  pointer-events: none;
+}
+
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+              linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 100;
+}
