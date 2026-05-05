@@ -10,8 +10,8 @@ const app = express();
 app.use(express.static(__dirname));
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-// Redirect all other requests to index.html
-app.get("*", (req, res) => {
+// Redirect all other requests to index.html (Express 5 compatibility)
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
