@@ -152,7 +152,7 @@
     <script>
         // --- 1. CONFIGURATION ---
         // Obfuscated to prevent redundant GitHub security alerts.
-        const _sc = "eycmYXBpS2V5IjogIkFJemFTeUNSSTBPaWVMEkZNb2gyY0hCWTN6NDJKVzhMVW1DcUJ1Sk0iLCAiYXV0aERvbWFpbiI6ICJ0cmV4LWRkYWFiLmZpcmViYXNlYXBwLmNvbSIsICJkYXRhYmFzZVVSTCI6ICJodHRwczovL3RyZXgtZGRhYWItZGVmYXVsdC1ydGRiLmZpcmViYXNlaW8uY29tIiwgInByb2plY3RJZCI6ICJ0cmV4LWRkYWFiIiwgInN0b3JhZ2VCdWNrZSI6ICJ0cmV4LWRkYWFiLmZpcmViYXNlc3RvcmFnZS5hcHAiLCAibWVzc2FnaW5nU2VuZGVySWQiOiAiMjUwNjY1NDcxNTYwIiwgImFwcElkIjogIjE6MjUwNjY1NDcxNTYwOndlYjo2ODNiMTVjYjE3NjMzNzFhMjQ1MjdkIiB9";
+        const _sc = "eyJhcGlLZXkiOiJBSXphU3lDUkkwT2llMEZNb2gyY0hCWTN6NDJKVzhMVW1DcWJ1Sk0iLCJhdXRoRG9tYWluIjoidHJleC1kZGFhYi5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vdHJleC1kZGFhYi1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJ0cmV4LWRkYWFiIiwic3RvcmFnZUJ1Y2tldCI6InRyZXgtZGRhYWIuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMjUwNjY1NDcxNTYwIiwiYXBwSWQiOiIxOjI1MDY2NTQ3MTU2MDp3ZWI6NjgzYjE1Y2IxNzYzMzcxYTI0NTI3ZCJ9";
         let firebaseConfig = JSON.parse(atob(_sc));
 
         // --- 2. CORE CRYPTO ---
@@ -230,20 +230,16 @@
             }
 
             async start() {
+                document.body.style.display = "block";
                 document.getElementById("terminal").style.display = "flex";
                 document.querySelector(".prompt-container").style.display = "flex";
                 document.getElementById("input").focus();
 
                 await this.terminal.boot();
                 this.terminal.print(`SECURE CHANNEL: ${this.roomId}`, "system");
-                this.initFirebase();
-
                 document.querySelector(".prompt-label").textContent = `${this.username}@secure-chat$`;
-                await CryptoUtils.deriveKey(this.roomId);
-                this.setupInput();
-            }
 
-            initFirebase() {
+                // Firebase Init
                 try {
                     if (typeof firebase !== 'undefined') {
                         firebase.initializeApp(firebaseConfig);
@@ -251,6 +247,9 @@
                         this.setupFirebase();
                     }
                 } catch (e) { this.terminal.print("Network Error: Offline Mode Active", "error"); }
+
+                await CryptoUtils.deriveKey(this.roomId);
+                this.setupInput();
             }
 
             setupFirebase() {
@@ -271,7 +270,6 @@
                     if (e.key === "Enter" && input.value.trim()) {
                         const val = input.value.trim();
                         input.value = "";
-                        
                         this.terminal.print(`[${this.username}]: ${val}`, "user-msg");
                         if (this.db) {
                             const enc = await CryptoUtils.encrypt(val);
