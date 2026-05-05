@@ -41,8 +41,8 @@ class SocketClient {
     this.send("join", { roomId });
   }
 
-  sendChat(data, iv) {
-    this.send("chat", { data, iv });
+  sendChat(data, iv, sender) {
+    this.send("chat", { data, iv, sender });
   }
 }
 

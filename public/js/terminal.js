@@ -26,20 +26,19 @@ class Terminal {
   async printBootSequence() {
     const lines = [
       "Initializing SecureChat-OS v2.0.0...",
-      "Loading kernel modules...",
       "Establishing encrypted tunnel...",
-      "Handshaking with peer...",
-      "Session verified. Welcome, user."
+      "Session verified. Welcome."
     ];
 
     for (const line of lines) {
       this.print(line, "info");
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 300));
     }
   }
 
   setPrompt(text) {
-    document.querySelector(".prompt-label").textContent = text;
+    const label = document.querySelector(".prompt-label");
+    if (label) label.textContent = text;
   }
 }
 

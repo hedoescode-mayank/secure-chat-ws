@@ -16,11 +16,27 @@
     <div class="crt-overlay"></div>
     <div class="scanline"></div>
 
-    <main id="terminal"></main>
+    <!-- Nickname Entry Box -->
+    <div id="nickname-overlay">
+        <div class="nickname-box glass">
+            <div class="box-header">IDENTIFICATION REQUIRED</div>
+            <div class="box-body">
+                <p>PLEASE ENTER YOUR ACCESS_ID TO INITIALIZE SECURE CHANNEL:</p>
+                <div class="input-wrapper">
+                    <span class="prompt-symbol">>></span>
+                    <input type="text" id="nickname-input" autofocus maxlength="15" spellcheck="false" autocomplete="off">
+                </div>
+                <div class="box-footer">PRESS [ENTER] TO AUTHENTICATE</div>
+            </div>
+        </div>
+    </div>
 
-    <div class="prompt-container">
+    <!-- Terminal UI (Hidden until nickname is set) -->
+    <main id="terminal" style="display: none;"></main>
+
+    <div class="prompt-container" style="display: none;">
         <span class="prompt-label">user@secure-chat:~$</span>
-        <input type="text" id="input" autofocus spellcheck="false" autocomplete="off">
+        <input type="text" id="input" spellcheck="false" autocomplete="off">
         <span class="cursor"></span>
     </div>
 
