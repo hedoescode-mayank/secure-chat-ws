@@ -35,10 +35,17 @@ class App {
   }
 
   async startTerminal() {
-    document.getElementById("terminal").style.display = "flex";
-    document.querySelector(".prompt-container").style.display = "flex";
-    document.getElementById("input").focus();
+    // 1. Show UI immediately
+    document.body.style.display = "block";
+    const termEl = document.getElementById("terminal");
+    const promptEl = document.querySelector(".prompt-container");
+    if (termEl) termEl.style.display = "flex";
+    if (promptEl) promptEl.style.display = "flex";
+    
+    const mainInput = document.getElementById("input");
+    if (mainInput) mainInput.focus();
 
+    // 2. Start effects
     await this.terminal.printBootSequence();
     this.terminal.print(`Connected to room: ${this.roomId}`, "system");
     this.terminal.setPrompt(`${this.username}@secure-chat:${this.roomId}$ `);
