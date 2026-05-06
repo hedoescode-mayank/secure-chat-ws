@@ -1,13 +1,13 @@
 # SecureChat-OS v2.0.0
 
-A professional-grade, CLI-based encrypted chat application using WebSockets and AES-GCM 256-bit encryption.
+A professional-grade, CLI-based encrypted chat application leveraging Firebase Realtime Database and AES-GCM 256-bit encryption for maximum security and zero-latency communication.
 
-## Features
-- **Terminal UI**: Premium hacker-style aesthetic with CRT effects and scanlines.
-- **End-to-End Encryption**: Messages are encrypted in the browser using AES-GCM.
-- **Room Isolation**: Backend-enforced message isolation based on room ID.
-- **Modular Architecture**: Cleanly separated concerns for scalability.
-- **CLI Commands**: Built-in commands like `/help`, `/clear`, and `/info`.
+## Core Features
+- **Terminal UI**: Premium hacker-style aesthetic with CRT effects, scanlines, and fluid animations.
+- **Consensus Deletion**: New 'Kill Room' feature requiring multi-user agreement to purge sensitive data.
+- **End-to-End Encryption**: Client-side encryption ensures no server-side plaintext data exposure.
+- **Room Isolation**: Peer-to-peer room isolation via cryptographically derived keys from Room IDs.
+- **CLI Commands**: Interactive terminal environment with native command support.
 
 ## Architecture
 - **Backend**: Node.js + WebSocket (`ws`)
