@@ -34,10 +34,14 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
 4. **Vercel Deployment**:
    - Push to GitHub and connect to Vercel for automatic zero-config deployment.
 
-## Usage
-- Open `index.html` in your browser.
-- Share the URL with the hash (e.g., `#room=xyz`) with a peer.
-- Type messages or commands directly into the terminal.
+## Usage Guide
+- **Accessing Rooms**: Open the application URL with a room hash (e.g., `https://secure-chat.vercel.app/#room=secret-tunnel`).
+- **Encryption Key**: The encryption key is derived directly from the Room ID. Ensure your peer has the exact same link.
+- **Terminal Commands**:
+  - `/clear`: Wipes the terminal screen.
+  - `/delete`: Instigates a room purge (requires 2-user consensus).
+  - `/info`: Displays current session and security metadata.
+  - `/help`: Lists all available system commands.
 
 ---
 *chips khao maje karo ,masti naa kare jii naa kare* 🔒
