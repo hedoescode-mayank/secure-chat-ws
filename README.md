@@ -9,13 +9,13 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
 - **Room Isolation**: Peer-to-peer room isolation via cryptographically derived keys from Room IDs.
 - **CLI Commands**: Interactive terminal environment with native command support.
 
-## Architecture
-- **Backend**: Node.js + WebSocket (`ws`)
-  - `lib/roomManager.js`: Handles room logic.
-  - `lib/socketHandler.js`: Manages socket events.
-- **Frontend**: Vanilla JS + CSS
-  - `public/js/crypto.js`: SubleCrypto implementation.
-  - `public/js/terminal.js`: UI engine.
+## Technical Architecture
+- **Real-time Backend**: Firebase Realtime Database
+  - **Presence System**: Automatic user cleanup on disconnect.
+  - **Vote Synchronization**: Real-time consensus tracking for room deletion.
+- **Security Engine**: Web Crypto API (AES-GCM)
+  - **Key Derivation**: PBKDF2 with unique salts per room.
+  - **Message Integrity**: Built-in authentication tags for each message.
 
 ## Installation
 1. `npm install`
