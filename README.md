@@ -17,9 +17,22 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - **Key Derivation**: PBKDF2 with unique salts per room.
   - **Message Integrity**: Built-in authentication tags for each message.
 
-## Installation
-1. `npm install`
-2. `npm start`
+## Installation & Setup
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/hedoescode-mayank/secure-chat.git
+   cd secure-chat
+   ```
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Local Development**:
+   ```bash
+   npm start
+   ```
+4. **Vercel Deployment**:
+   - Push to GitHub and connect to Vercel for automatic zero-config deployment.
 
 ## Usage
 - Open `index.html` in your browser.
