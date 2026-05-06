@@ -44,4 +44,7 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - `/help`: Lists all available system commands.
 
 ---
+![Security](https://img.shields.io/badge/Security-AES--256--GCM-green?style=for-the-badge&logo=shield)
+![Status](https://img.shields.io/badge/Status-Verified-blue?style=for-the-badge)
+
 *chips khao maje karo ,masti naa kare jii naa kare* 🔒
