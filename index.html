@@ -118,6 +118,63 @@
         .user-msg { color: #fff; }
         .info { color: #3e8eff; }
         .error { color: #ff3e3e; }
+        
+        /* New UI Components */
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(0, 40, 0, 0.4);
+            border-bottom: 1px solid var(--terminal-dim);
+            z-index: 100;
+        }
+        
+        .header-title { color: var(--terminal-green); font-size: 14px; font-weight: bold; }
+        
+        .header-buttons { display: flex; gap: 10px; }
+        
+        .btn-small {
+            background: transparent;
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+            padding: 5px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        
+        .btn-small:hover { background: var(--terminal-green); color: #000; }
+        .btn-kill { border-color: #ff3e3e; color: #ff3e3e; }
+        .btn-kill:hover { background: #ff3e3e; color: #000; }
+        
+        #vote-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background: #000;
+            border: 1px solid var(--terminal-green);
+            padding: 15px;
+            box-shadow: 0 0 20px var(--terminal-glow);
+            z-index: 2000;
+            display: none;
+        }
+        
+        .notification-header { color: var(--terminal-green); font-weight: bold; margin-bottom: 10px; }
+        .notification-body { font-size: 13px; margin-bottom: 15px; }
+        
+        #new-room-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +194,28 @@
             </div>
         </div>
     </div>
+
+    <div id="new-room-overlay">
+        <h1 style="color: #ff3e3e; letter-spacing: 5px;">ROOM TERMINATED</h1>
+        <p>Your previous secure channel has been purged.</p>
+        <button id="create-new-room-btn" class="auth-button">Create New Room</button>
+    </div>
+
+    <div id="vote-notification">
+        <div class="notification-header">! DELETION REQUEST</div>
+        <div class="notification-body" id="vote-msg">Another user wants to kill this room. Do you agree?</div>
+        <div class="header-buttons">
+            <button id="vote-yes" class="btn-small">YES (KILL)</button>
+            <button id="vote-no" class="btn-small">NO</button>
+        </div>
+    </div>
+
+    <header id="header" style="display: none;">
+        <div class="header-title">SECURE_CHANNEL // ID: <span id="display-room-id">...</span></div>
+        <div class="header-buttons">
+            <button id="kill-room-btn" class="btn-small btn-kill">Kill Room</button>
+        </div>
+    </header>
 
     <main id="terminal"></main>
 
@@ -191,7 +270,9 @@
                 line.textContent = text;
                 if (type === "system") line.innerHTML = `<span style="color:#00ff41">>></span> ${text}`;
                 this.el.appendChild(line);
-                this.el.scrollTop = this.el.scrollHeight;
+                requestAnimationFrame(() => {
+                    this.el.scrollTop = this.el.scrollHeight;
+                });
             }
             clear() { this.el.innerHTML = ""; }
             async boot() {
@@ -230,8 +311,10 @@
             }
 
             async start() {
-                document.body.style.display = "block";
+                // document.body.style.display = "block"; // REMOVED: This was overriding display: flex and breaking layout
                 document.getElementById("terminal").style.display = "flex";
+                document.getElementById("header").style.display = "flex";
+                document.getElementById("display-room-id").textContent = this.roomId;
                 document.querySelector(".prompt-container").style.display = "flex";
                 document.getElementById("input").focus();
 
@@ -249,13 +332,81 @@
                         const presenceRef = this.db.ref(`rooms/${this.roomId}/presence/${this.username}`);
                         presenceRef.set({ online: true });
                         presenceRef.onDisconnect().remove();
-
+                        
+                        this.setupDeleteListeners();
                         this.setupFirebase();
                     }
                 } catch (e) { this.terminal.print("Network Error: Offline Mode Active", "error"); }
 
                 await CryptoUtils.deriveKey(this.roomId);
                 this.setupInput();
+                this.setupButtons();
+            }
+
+            setupDeleteListeners() {
+                const votesRef = this.db.ref(`rooms/${this.roomId}/killVotes`);
+                const roomRef = this.db.ref(`rooms/${this.roomId}`);
+
+                // Listen for deletion (room node removed)
+                roomRef.on("value", (snapshot) => {
+                    if (!snapshot.exists() && this.db) {
+                        document.getElementById("new-room-overlay").style.display = "flex";
+                        document.getElementById("terminal").style.display = "none";
+                        document.getElementById("header").style.display = "none";
+                        document.querySelector(".prompt-container").style.display = "none";
+                    }
+                });
+
+                // Listen for votes
+                votesRef.on("value", (snapshot) => {
+                    const votes = snapshot.val() || {};
+                    const voters = Object.keys(votes);
+                    
+                    if (voters.length > 0) {
+                        if (voters.includes(this.username)) {
+                            // Current user already voted
+                            document.getElementById("vote-notification").style.display = "none";
+                            if (voters.length < 2) {
+                                this.terminal.print(`VOTE CAST: Waiting for consensus... (${voters.length}/2)`, "info");
+                            }
+                        } else {
+                            // Show notification to others
+                            document.getElementById("vote-notification").style.display = "block";
+                            document.getElementById("vote-msg").textContent = `${voters[0]} wants to kill this room. Do you agree?`;
+                        }
+
+                        if (voters.length >= 2) {
+                            this.terminal.print("CONSENSUS REACHED. PURGING DATA...", "error");
+                            roomRef.remove();
+                        }
+                    }
+                });
+            }
+
+            setupButtons() {
+                const killBtn = document.getElementById("kill-room-btn");
+                const voteYes = document.getElementById("vote-yes");
+                const voteNo = document.getElementById("vote-no");
+                const createNewBtn = document.getElementById("create-new-room-btn");
+
+                const castVote = () => {
+                    if (this.db) {
+                        this.db.ref(`rooms/${this.roomId}/killVotes/${this.username}`).set(true);
+                        document.getElementById("vote-notification").style.display = "none";
+                    }
+                };
+
+                killBtn.addEventListener("click", castVote);
+                voteYes.addEventListener("click", castVote);
+                voteNo.addEventListener("click", () => {
+                    document.getElementById("vote-notification").style.display = "none";
+                });
+
+                createNewBtn.addEventListener("click", () => {
+                    const newId = Math.random().toString(36).substring(7);
+                    location.hash = "room=" + newId;
+                    location.reload();
+                });
             }
 
             setupFirebase() {
