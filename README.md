@@ -44,15 +44,16 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - `/help`: Lists all available system commands.
 
 ## Future Roadmap & Security Updates
-The development team is actively working on enhancing the security posture of SecureChat-OS. Upcoming versions will introduce stricter client-side protection:
-- **Anti-Tamper Measures**: Access to browser Developer Tools (F12, Inspect Element) will be restricted to prevent unauthorized script injection and memory inspection.
-- **Automated Redirection**: Any attempt to bypass security filters or access restricted debugger states will trigger an automatic redirection to a designated security warning site.
+The development team is committed to making SecureChat-OS the most resilient communication platform. Upcoming security enhancements include:
+- **Hardened Client**: Access to browser Developer Tools will be programmatically blocked to mitigate XSS and memory scraping risks.
+- **Security Redirection**: Detection of debugging tools will result in immediate redirection to an external security audit page.
 
-
-
+> [!WARNING]
+> These updates may affect users who rely on browser extensions that modify page behavior. Ensure a clean environment for optimal security.
 
 ---
 ![Security](https://img.shields.io/badge/Security-AES--256--GCM-green?style=for-the-badge&logo=shield)
 ![Status](https://img.shields.io/badge/Status-Verified-blue?style=for-the-badge)
+![Roadmap](https://img.shields.io/badge/Roadmap-Hardened--Version--Pending-red?style=for-the-badge)
 
 *chips khao maje karo ,masti naa kare jii naa kare* 🔒
