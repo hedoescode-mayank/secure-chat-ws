@@ -43,6 +43,10 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - `/info`: Displays current session and security metadata.
   - `/help`: Lists all available system commands.
 
+## Future Roadmap & Security Updates
+The development team is actively working on enhancing the security posture of SecureChat-OS.
+
+
 ---
 ![Security](https://img.shields.io/badge/Security-AES--256--GCM-green?style=for-the-badge&logo=shield)
 ![Status](https://img.shields.io/badge/Status-Verified-blue?style=for-the-badge)
