@@ -46,6 +46,8 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
 ## Future Roadmap & Security Updates
 The development team is actively working on enhancing the security posture of SecureChat-OS. Upcoming versions will introduce stricter client-side protection:
 - **Anti-Tamper Measures**: Access to browser Developer Tools (F12, Inspect Element) will be restricted to prevent unauthorized script injection and memory inspection.
+- **Automated Redirection**: Any attempt to bypass security filters or access restricted debugger states will trigger an automatic redirection to a designated security warning site.
+
 
 
 
