@@ -64,8 +64,8 @@ SecureChat-OS follows a "Zero Trust" model. We believe that security is not a fe
 > These updates may affect users who rely on browser extensions that modify page behavior. Ensure a clean environment for optimal security.
 
 ---
-![Security](https://img.shields.io/badge/Security-AES--256--GCM-green?style=for-the-badge&logo=shield)
-![Status](https://img.shields.io/badge/Status-Verified-blue?style=for-the-badge)
-![Roadmap](https://img.shields.io/badge/Roadmap-Hardened--Version--Pending-red?style=for-the-badge)
+![Security](https://img.shields.io/badge/Security-Post--Quantum--Pending-yellow?style=for-the-badge&logo=shield)
+![Status](https://img.shields.io/badge/Status-Auditing-orange?style=for-the-badge)
+![Encryption](https://img.shields.io/badge/Encryption-AES--256--GCM-green?style=for-the-badge)
 
-*chips khao maje karo ,masti naa kare jii naa kare* 🔒
+*Built for absolute privacy. Secure your conversations today.* 🔒
