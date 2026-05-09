@@ -69,3 +69,8 @@ SecureChat-OS follows a "Zero Trust" model. We believe that security is not a fe
 ![Encryption](https://img.shields.io/badge/Encryption-AES--256--GCM-green?style=for-the-badge)
 
 *Built for absolute privacy. Secure your conversations today.* 🔒
+
+## 🤝 Contributors
+We welcome contributions from the security community. Please see our [Security Policy](SECURITY.md) for reporting vulnerabilities.
+
+- **Mayank** (@hedoescode-mayank) - Lead Architect & Security Researcher
