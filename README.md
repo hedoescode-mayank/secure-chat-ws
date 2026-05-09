@@ -49,7 +49,9 @@ The development team is committed to making SecureChat-OS the most resilient com
 ### 🛡️ Security Infrastructure & Philosophy
 SecureChat-OS follows a "Zero Trust" model. We believe that security is not a feature but a continuous process of hardening against evolving threats.
 
-- **Cryptographic Resilience**: Transitioning from standard AES-GCM to Quantum-Resistant (QR) algorithms to future-proof communication against potential decryption by quantum computers.
+- **Cryptographic Resilience**: 
+  - **Quantum-Resistant (QR) Algorithms**: Evaluating Crystals-Kyber and Dilithium for future-proofing against Shor's algorithm.
+  - **Perfect Forward Secrecy (PFS)**: Transitioning to ephemeral session keys to ensure past messages remain secure if future keys are leaked.
 - **Identity Privacy**: Implementing Zero-Knowledge Proofs (ZKP) to ensure users can authenticate without ever transmitting or storing sensitive credentials.
 - **Environment Hardening**: Programmatic mitigation of client-side debugging tools.
 
