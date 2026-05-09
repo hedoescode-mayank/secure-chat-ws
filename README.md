@@ -44,9 +44,14 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - `/help`: Lists all available system commands.
 
 ## Future Roadmap & Security Updates
-The development team is committed to making SecureChat-OS the most resilient communication platform. Upcoming security enhancements include:
-- **Hardened Client**: Access to browser Developer Tools will be programmatically blocked to mitigate XSS and memory scraping risks.
-- **Security Redirection**: Detection of debugging tools will result in immediate redirection to an external security audit page.
+The development team is committed to making SecureChat-OS the most resilient communication platform. Our upcoming major security fixes focus on three core pillars: Cryptographic Resilience, Identity Privacy, and Environment Hardening.
+
+### 🛡️ Security Infrastructure & Philosophy
+SecureChat-OS follows a "Zero Trust" model. We believe that security is not a feature but a continuous process of hardening against evolving threats.
+
+- **Cryptographic Resilience**: Transitioning from standard AES-GCM to Quantum-Resistant (QR) algorithms to future-proof communication against potential decryption by quantum computers.
+- **Identity Privacy**: Implementing Zero-Knowledge Proofs (ZKP) to ensure users can authenticate without ever transmitting or storing sensitive credentials.
+- **Environment Hardening**: Programmatic mitigation of client-side debugging tools.
 
 > [!WARNING]
 > These updates may affect users who rely on browser extensions that modify page behavior. Ensure a clean environment for optimal security.
