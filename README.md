@@ -55,7 +55,10 @@ SecureChat-OS follows a "Zero Trust" model. We believe that security is not a fe
 - **Identity Privacy**: 
   - **Zero-Knowledge Proofs (ZKP)**: Allowing users to prove room ownership without revealing the underlying Room ID or password to the database.
   - **Hardware-Level Security**: Integrating WebAuthn for FIDO2-compliant biometric and hardware security key authentication.
-- **Environment Hardening**: Programmatic mitigation of client-side debugging tools.
+- **Environment Hardening**: 
+  - **DevTool Detection**: Programmatic blocking of browser Developer Tools to mitigate XSS and memory scraping risks.
+  - **Anti-Tampering**: Implementation of Subresource Integrity (SRI) and Content Security Policy (CSP) headers to prevent script injection.
+- **Multi-Signature Purge**: Upgrading the 'Kill Room' feature to support Threshold Signature Schemes (TSS) for distributed consensus on data deletion.
 
 > [!WARNING]
 > These updates may affect users who rely on browser extensions that modify page behavior. Ensure a clean environment for optimal security.
