@@ -52,7 +52,9 @@ SecureChat-OS follows a "Zero Trust" model. We believe that security is not a fe
 - **Cryptographic Resilience**: 
   - **Quantum-Resistant (QR) Algorithms**: Evaluating Crystals-Kyber and Dilithium for future-proofing against Shor's algorithm.
   - **Perfect Forward Secrecy (PFS)**: Transitioning to ephemeral session keys to ensure past messages remain secure if future keys are leaked.
-- **Identity Privacy**: Implementing Zero-Knowledge Proofs (ZKP) to ensure users can authenticate without ever transmitting or storing sensitive credentials.
+- **Identity Privacy**: 
+  - **Zero-Knowledge Proofs (ZKP)**: Allowing users to prove room ownership without revealing the underlying Room ID or password to the database.
+  - **Hardware-Level Security**: Integrating WebAuthn for FIDO2-compliant biometric and hardware security key authentication.
 - **Environment Hardening**: Programmatic mitigation of client-side debugging tools.
 
 > [!WARNING]
