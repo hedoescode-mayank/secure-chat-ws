@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "echo 'Launch SecureChat-OS, then visit http://localhost:3000/test.html to run the automated test suite.'"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
