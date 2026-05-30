@@ -175,6 +175,126 @@
             z-index: 3000;
             text-align: center;
         }
+
+        /* --- CAMERA WIDGET STYLING --- */
+        #peek-camera-widget {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            width: 240px;
+            border: 1px solid var(--terminal-green);
+            background: #000;
+            box-shadow: 0 0 25px var(--terminal-glow);
+            z-index: 1500;
+            display: none;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+            font-family: var(--font-mono);
+        }
+
+        .widget-header {
+            background: var(--terminal-green);
+            color: #000;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: move;
+            letter-spacing: 1px;
+        }
+
+        .widget-drag-hint {
+            font-size: 9px;
+            opacity: 0.7;
+        }
+
+        .widget-body {
+            position: relative;
+            width: 100%;
+            background: #050505;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-bottom: 1px solid var(--terminal-dim);
+            aspect-ratio: 4 / 3;
+        }
+
+        #remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        #local-video {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 70px;
+            aspect-ratio: 4 / 3;
+            border: 1px solid var(--terminal-green);
+            z-index: 10;
+            display: none;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror local feed */
+            background: #000;
+            box-shadow: 0 0 10px var(--terminal-glow);
+            cursor: move;
+        }
+
+        .camera-placeholder {
+            position: absolute;
+            color: var(--terminal-dim);
+            font-size: 14px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            animation: pulse-dim 2s infinite ease-in-out;
+            z-index: 5;
+        }
+
+        @keyframes pulse-dim {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.9; }
+            100% { opacity: 0.4; }
+        }
+
+        .widget-footer {
+            background: #000;
+            padding: 6px;
+            display: flex;
+            gap: 4px;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .btn-widget {
+            background: transparent;
+            border: 1px solid var(--terminal-green);
+            color: var(--terminal-green);
+            padding: 3px 6px;
+            font-size: 9px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: var(--font-mono);
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .btn-widget:hover {
+            background: var(--terminal-green);
+            color: #000;
+        }
+
+        .btn-widget:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -213,9 +333,34 @@
     <header id="header" style="display: none;">
         <div class="header-title">SECURE_CHANNEL // ID: <span id="display-room-id">...</span></div>
         <div class="header-buttons">
+            <button id="toggle-camera-btn" class="btn-small">PEEK HERE</button>
             <button id="kill-room-btn" class="btn-small btn-kill">Kill Room</button>
         </div>
     </header>
+
+    <!-- Floating Camera Widget -->
+    <div id="peek-camera-widget">
+        <div class="widget-header" id="peek-widget-header">
+            <span class="widget-title">[PEEK_HERE_v1.0]</span>
+            <span class="widget-drag-hint">:: DRAG HANDLE ::</span>
+        </div>
+        <div class="widget-body">
+            <div id="camera-placeholder" class="camera-placeholder">CAM_OFFLINE</div>
+            <video id="remote-video" autoplay playsinline></video>
+            <video id="local-video" autoplay playsinline muted></video>
+        </div>
+        <div class="widget-footer" style="flex-wrap: wrap;">
+            <select id="cam-device-select" class="btn-widget" style="width: 100%; margin-bottom: 4px; text-align: left; background: #000; color: var(--terminal-green); border: 1px solid var(--terminal-green); font-family: var(--font-mono); font-size: 9px; padding: 2px; outline: none; cursor: pointer;">
+                <option value="">[SELECT CAMERA]</option>
+            </select>
+            <div style="display: flex; width: 100%; gap: 4px;">
+                <button id="cam-toggle-btn" class="btn-widget">[CAM ON]</button>
+                <button id="cam-size-minus" class="btn-widget">[SIZE -]</button>
+                <button id="cam-size-plus" class="btn-widget">[SIZE +]</button>
+                <button id="cam-close-btn" class="btn-widget">[X]</button>
+            </div>
+        </div>
+    </div>
 
     <main id="terminal"></main>
 
@@ -287,6 +432,550 @@
             }
         }
 
+        // --- 3.5 CAMERA WIDGET ENGINE ---
+        class CameraWidget {
+            constructor(app) {
+                this.app = app;
+                this.widget = document.getElementById("peek-camera-widget");
+                this.header = document.getElementById("peek-widget-header");
+                
+                // Video elements
+                this.remoteVideo = document.getElementById("remote-video");
+                this.localVideo = document.getElementById("local-video");
+                this.placeholder = document.getElementById("camera-placeholder");
+                
+                this.deviceSelect = document.getElementById("cam-device-select");
+                this.toggleBtn = document.getElementById("cam-toggle-btn");
+                this.sizeMinus = document.getElementById("cam-size-minus");
+                this.sizePlus = document.getElementById("cam-size-plus");
+                this.closeBtn = document.getElementById("cam-close-btn");
+                this.headerToggleBtn = document.getElementById("toggle-camera-btn");
+
+                this.stream = null;
+                this.isCamOn = false;
+                this.currentWidth = 240; // Default size in px
+
+                // WebRTC specific state
+                this.pc = null;
+                this.peerName = "Peer";
+                this.makingOffer = false;
+                this.ignoreOffer = false;
+                this.isSettingRemote = false;
+
+                this.initDrag();
+                this.initLocalVideoDrag();
+                this.initControls();
+                
+                // Attempt to populate devices list initially (in case permission is already granted)
+                this.populateDevices();
+            }
+
+            initControls() {
+                // Header toggle
+                this.headerToggleBtn.addEventListener("click", () => this.toggleWidget());
+                // Widget close button
+                this.closeBtn.addEventListener("click", () => this.hideWidget());
+                // Camera ON/OFF
+                this.toggleBtn.addEventListener("click", () => this.toggleCamera());
+                // Size controls
+                this.sizePlus.addEventListener("click", () => this.adjustSize(40));
+                this.sizeMinus.addEventListener("click", () => this.adjustSize(-40));
+                
+                // Camera source change dropdown selection
+                this.deviceSelect.addEventListener("change", async (e) => {
+                    if (e.target.value) {
+                        if (this.isCamOn) {
+                            await this.changeCamera(e.target.value);
+                        } else {
+                            await this.startCamera(e.target.value);
+                        }
+                    }
+                });
+
+                // Listen to device connections / disconnections (e.g. starting OBS Virtual Camera)
+                navigator.mediaDevices.addEventListener("devicechange", () => {
+                    this.populateDevices();
+                });
+            }
+
+            setPeerName(name) {
+                this.peerName = name;
+                console.log(`WebRTC: Peer name set to ${name}`);
+            }
+
+            get isPolite() {
+                return this.app.username.toLowerCase() < this.peerName.toLowerCase();
+            }
+
+            initPeerConnection() {
+                if (this.pc) return;
+
+                console.log("Initializing RTCPeerConnection");
+                const configuration = {
+                    iceServers: [
+                        { urls: "stun:stun.l.google.com:19302" },
+                        { urls: "stun:stun1.l.google.com:19302" }
+                    ]
+                };
+
+                this.pc = new RTCPeerConnection(configuration);
+
+                // Send ICE candidates to remote peer
+                this.pc.onicecandidate = (event) => {
+                    if (event.candidate && this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
+                        this.app.socket.send(JSON.stringify({
+                            type: "webrtc_ice",
+                            candidate: event.candidate
+                        }));
+                    }
+                };
+
+                // Handle incoming remote streams
+                this.pc.ontrack = (event) => {
+                    console.log("WebRTC: Received remote track", event.streams);
+                    if (event.streams && event.streams[0]) {
+                        this.remoteVideo.srcObject = event.streams[0];
+                        this.remoteVideo.style.display = "block";
+                        this.placeholder.style.display = "none";
+                    }
+                };
+
+                // Polite peer negotiation glare handling
+                this.pc.onnegotiationneeded = async () => {
+                    try {
+                        this.makingOffer = true;
+                        console.log("WebRTC: Negotiation needed, creating offer...");
+                        await this.pc.setLocalDescription();
+                        if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
+                            this.app.socket.send(JSON.stringify({
+                                type: "webrtc_offer",
+                                offer: this.pc.localDescription
+                            }));
+                        }
+                    } catch (err) {
+                        console.error("WebRTC: Error during negotiation:", err);
+                    } finally {
+                        this.makingOffer = false;
+                    }
+                };
+
+                this.pc.onconnectionstatechange = () => {
+                    console.log(`WebRTC Connection State: ${this.pc.connectionState}`);
+                    if (this.pc.connectionState === "disconnected" || this.pc.connectionState === "failed") {
+                        this.handleRemoteStreamEnded();
+                    }
+                };
+            }
+
+            handleRemoteStreamEnded() {
+                console.log("WebRTC: Remote stream ended");
+                this.remoteVideo.srcObject = null;
+                this.remoteVideo.style.display = "none";
+                this.checkPlaceholderVisibility();
+            }
+
+            checkPlaceholderVisibility() {
+                const localActive = this.stream && this.stream.active;
+                const remoteActive = this.remoteVideo.srcObject && this.remoteVideo.srcObject.active;
+
+                if (!localActive && !remoteActive) {
+                    this.placeholder.style.display = "flex";
+                    this.placeholder.textContent = "CAM_OFFLINE";
+                } else {
+                    this.placeholder.style.display = "none";
+                }
+            }
+
+            toggleWidget() {
+                if (this.widget.style.display === "flex") {
+                    this.hideWidget();
+                } else {
+                    this.widget.style.display = "flex";
+                    this.headerToggleBtn.style.background = "var(--terminal-green)";
+                    this.headerToggleBtn.style.color = "#000";
+                }
+            }
+
+            hideWidget() {
+                this.widget.style.display = "none";
+                this.headerToggleBtn.style.background = "transparent";
+                this.headerToggleBtn.style.color = "var(--terminal-green)";
+            }
+
+            async toggleCamera() {
+                if (this.isCamOn) {
+                    this.stopCamera();
+                } else {
+                    await this.startCamera();
+                }
+            }
+
+            async startCamera(deviceId = null) {
+                try {
+                    this.toggleBtn.textContent = "[INITIALIZING...]";
+                    this.toggleBtn.disabled = true;
+
+                    const constraints = {
+                        video: deviceId ? { deviceId: { exact: deviceId }, width: 640, height: 480 } : { width: 640, height: 480 },
+                        audio: false
+                    };
+
+                    // 1. Get media stream
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                    // 2. Set stream to local video thumbnail
+                    this.localVideo.srcObject = this.stream;
+                    this.localVideo.style.display = "block";
+                    
+                    // 3. Make sure RTCPeerConnection is initialized
+                    this.initPeerConnection();
+
+                    // 4. Add tracks to peer connection
+                    this.stream.getTracks().forEach(track => {
+                        this.pc.addTrack(track, this.stream);
+                    });
+
+                    // Hide placeholder
+                    this.placeholder.style.display = "none";
+                    
+                    this.toggleBtn.textContent = "[CAM OFF]";
+                    this.toggleBtn.style.borderColor = "#ff3e3e";
+                    this.toggleBtn.style.color = "#ff3e3e";
+                    this.isCamOn = true;
+
+                    // Populate camera device selections dynamically
+                    await this.populateDevices();
+
+                    // 5. Notify the peer that we've turned our camera on
+                    if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
+                        this.app.socket.send(JSON.stringify({ type: "webrtc_request" }));
+                    }
+
+                } catch (err) {
+                    console.error("Camera access failed: ", err);
+                    this.toggleBtn.textContent = "[CAM ERR]";
+                    this.placeholder.textContent = "ACCESS_DENIED";
+                    this.placeholder.style.display = "flex";
+                    setTimeout(() => {
+                        this.toggleBtn.textContent = "[CAM ON]";
+                        this.toggleBtn.style.borderColor = "var(--terminal-green)";
+                        this.toggleBtn.style.color = "var(--terminal-green)";
+                    }, 2000);
+                } finally {
+                    this.toggleBtn.disabled = false;
+                }
+            }
+
+            stopCamera() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                this.localVideo.srcObject = null;
+                this.localVideo.style.display = "none";
+
+                // Reset position of local video
+                this.localVideo.style.top = "auto";
+                this.localVideo.style.left = "auto";
+                this.localVideo.style.right = "10px";
+                this.localVideo.style.bottom = "10px";
+
+                // Reset device select dropdown option list
+                this.deviceSelect.innerHTML = '<option value="">[SELECT CAMERA]</option>';
+
+                // Remove tracks from RTCPeerConnection
+                if (this.pc) {
+                    const senders = this.pc.getSenders();
+                    senders.forEach(sender => {
+                        this.pc.removeTrack(sender);
+                    });
+                }
+
+                this.toggleBtn.textContent = "[CAM ON]";
+                this.toggleBtn.style.borderColor = "var(--terminal-green)";
+                this.toggleBtn.style.color = "var(--terminal-green)";
+                this.isCamOn = false;
+
+                // Send cancel signaling message
+                if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
+                    this.app.socket.send(JSON.stringify({ type: "webrtc_cancel" }));
+                }
+
+                this.checkPlaceholderVisibility();
+            }
+
+            async populateDevices() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    
+                    // Clear existing option elements
+                    this.deviceSelect.innerHTML = "";
+
+                    if (videoDevices.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = "";
+                        opt.textContent = "[NO CAMERAS FOUND]";
+                        this.deviceSelect.appendChild(opt);
+                        return;
+                    }
+
+                    // Prepend default selection option
+                    const defaultOpt = document.createElement("option");
+                    defaultOpt.value = "";
+                    defaultOpt.textContent = "[SELECT CAMERA SOURCE]";
+                    this.deviceSelect.appendChild(defaultOpt);
+
+                    videoDevices.forEach((device, index) => {
+                        const opt = document.createElement("option");
+                        opt.value = device.deviceId;
+                        opt.textContent = `[${(device.label || `Camera ${index + 1}`).toUpperCase()}]`;
+                        
+                        // Select current device if matching
+                        if (this.stream) {
+                            const activeTrack = this.stream.getVideoTracks()[0];
+                            if (activeTrack && activeTrack.getSettings().deviceId === device.deviceId) {
+                                opt.selected = true;
+                            }
+                        }
+                        this.deviceSelect.appendChild(opt);
+                    });
+                } catch (err) {
+                    console.error("Failed to enumerate devices:", err);
+                }
+            }
+
+            async changeCamera(deviceId) {
+                if (!this.isCamOn) return;
+                
+                try {
+                    console.log(`Switching camera to deviceId: ${deviceId}`);
+                    this.toggleBtn.disabled = true;
+
+                    // 1. Get new media stream with explicit deviceId first
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: deviceId }, width: 640, height: 480 },
+                        audio: false
+                    });
+
+                    // 2. Stop old stream tracks
+                    if (this.stream) {
+                        this.stream.getTracks().forEach(track => track.stop());
+                    }
+
+                    this.stream = newStream;
+
+                    // 3. Update local video source
+                    this.localVideo.srcObject = this.stream;
+                    
+                    // 4. Replace video track in peer connection senders
+                    if (this.pc) {
+                        const videoTrack = this.stream.getVideoTracks()[0];
+                        const senders = this.pc.getSenders();
+                        const videoSender = senders.find(sender => sender.track && sender.track.kind === 'video');
+                        
+                        if (videoSender) {
+                            console.log("Replacing WebRTC track with new camera track");
+                            await videoSender.replaceTrack(videoTrack);
+                        } else {
+                            this.pc.addTrack(videoTrack, this.stream);
+                        }
+                    }
+
+                    this.checkPlaceholderVisibility();
+                } catch (err) {
+                    console.error("Failed to switch camera:", err);
+                    this.app.terminal.print("Failed to switch camera source.", "error");
+                } finally {
+                    this.toggleBtn.disabled = false;
+                }
+            }
+
+            async handleSignaling(message) {
+                try {
+                    switch (message.type) {
+                        case "webrtc_request":
+                            console.log("WebRTC: Received webrtc_request from peer");
+                            this.initPeerConnection();
+                            break;
+
+                        case "webrtc_offer":
+                            console.log("WebRTC: Received offer from peer");
+                            this.initPeerConnection();
+                            
+                            const offerCollision = (this.makingOffer || this.pc.signalingState !== "stable");
+                            this.ignoreOffer = !this.isPolite && offerCollision;
+                            
+                            if (this.ignoreOffer) {
+                                console.log("WebRTC: Offer collision! Ignoring offer as impolite peer.");
+                                return;
+                            }
+
+                            this.isSettingRemote = true;
+                            await this.pc.setRemoteDescription(new RTCSessionDescription(message.offer));
+                            this.isSettingRemote = false;
+
+                            await this.pc.setLocalDescription();
+                            if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
+                                this.app.socket.send(JSON.stringify({
+                                    type: "webrtc_answer",
+                                    answer: this.pc.localDescription
+                                }));
+                            }
+                            break;
+
+                        case "webrtc_answer":
+                            console.log("WebRTC: Received answer from peer");
+                            if (this.pc) {
+                                await this.pc.setRemoteDescription(new RTCSessionDescription(message.answer));
+                            }
+                            break;
+
+                        case "webrtc_ice":
+                            console.log("WebRTC: Received ICE candidate from peer");
+                            this.initPeerConnection();
+                            try {
+                                await this.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+                            } catch (err) {
+                                if (!this.ignoreOffer) {
+                                    console.error("WebRTC: Error adding ICE candidate", err);
+                                }
+                            }
+                            break;
+
+                        case "webrtc_cancel":
+                            console.log("WebRTC: Received webrtc_cancel from peer");
+                            this.handleRemoteStreamEnded();
+                            break;
+                    }
+                } catch (err) {
+                    console.error("WebRTC: Error handling signaling message", err);
+                }
+            }
+
+            adjustSize(amount) {
+                const newWidth = this.currentWidth + amount;
+                if (newWidth >= 200 && newWidth <= 600) {
+                    this.currentWidth = newWidth;
+                    this.widget.style.width = `${this.currentWidth}px`;
+                }
+            }
+
+            initLocalVideoDrag() {
+                let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                
+                const dragStart = (e) => {
+                    e.stopPropagation(); // Prevent dragging the main widget
+                    
+                    const clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+                    
+                    pos3 = clientX;
+                    pos4 = clientY;
+                    
+                    if (e.type === "touchstart") {
+                        document.ontouchend = dragEnd;
+                        document.ontouchmove = dragMove;
+                    } else {
+                        document.onmouseup = dragEnd;
+                        document.onmousemove = dragMove;
+                    }
+                };
+
+                const dragMove = (e) => {
+                    const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                    
+                    pos1 = pos3 - clientX;
+                    pos2 = pos4 - clientY;
+                    pos3 = clientX;
+                    pos4 = clientY;
+                    
+                    let newTop = this.localVideo.offsetTop - pos2;
+                    let newLeft = this.localVideo.offsetLeft - pos1;
+                    
+                    const widgetBody = this.localVideo.parentElement;
+                    const maxLeft = widgetBody.clientWidth - this.localVideo.offsetWidth;
+                    const maxTop = widgetBody.clientHeight - this.localVideo.offsetHeight;
+                    
+                    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                    newTop = Math.max(0, Math.min(newTop, maxTop));
+                    
+                    this.localVideo.style.top = newTop + "px";
+                    this.localVideo.style.left = newLeft + "px";
+                    this.localVideo.style.right = "auto";
+                    this.localVideo.style.bottom = "auto";
+                };
+
+                const dragEnd = () => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                    document.ontouchend = null;
+                    document.ontouchmove = null;
+                };
+
+                this.localVideo.onmousedown = dragStart;
+                this.localVideo.addEventListener("touchstart", dragStart, { passive: true });
+            }
+
+            initDrag() {
+                let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                
+                const dragStart = (e) => {
+                    if (e.target.closest("button") || e.target.closest("select")) return;
+                    
+                    const clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+                    
+                    pos3 = clientX;
+                    pos4 = clientY;
+                    
+                    if (e.type === "touchstart") {
+                        document.ontouchend = dragEnd;
+                        document.ontouchmove = dragMove;
+                    } else {
+                        document.onmouseup = dragEnd;
+                        document.onmousemove = dragMove;
+                    }
+                };
+
+                const dragMove = (e) => {
+                    const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                    
+                    pos1 = pos3 - clientX;
+                    pos2 = pos4 - clientY;
+                    pos3 = clientX;
+                    pos4 = clientY;
+                    
+                    let newTop = this.widget.offsetTop - pos2;
+                    let newLeft = this.widget.offsetLeft - pos1;
+                    
+                    const margin = 10;
+                    const maxLeft = window.innerWidth - this.widget.offsetWidth - margin;
+                    const maxTop = window.innerHeight - this.widget.offsetHeight - margin;
+                    
+                    newLeft = Math.max(margin, Math.min(newLeft, maxLeft));
+                    newTop = Math.max(margin, Math.min(newTop, maxTop));
+                    
+                    this.widget.style.top = newTop + "px";
+                    this.widget.style.left = newLeft + "px";
+                    this.widget.style.right = "auto";
+                    this.widget.style.bottom = "auto";
+                };
+
+                const dragEnd = () => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                    document.ontouchend = null;
+                    document.ontouchmove = null;
+                };
+
+                this.header.onmousedown = dragStart;
+                this.header.addEventListener("touchstart", dragStart, { passive: true });
+            }
+        }
+
         // --- 4. APP LOGIC ---
         class App {
             constructor() {
@@ -316,6 +1005,60 @@
                 btn.addEventListener("click", proceed);
             }
 
+            connectSocket() {
+                const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+                const wsUrl = `${proto}//${window.location.host}`;
+                
+                this.terminal.print("Establishing WebSocket signaling tunnel...", "info");
+                this.socket = new WebSocket(wsUrl);
+
+                this.socket.onopen = () => {
+                    console.log("WebSocket connected.");
+                    this.socket.send(JSON.stringify({
+                        type: "join",
+                        roomId: this.roomId,
+                        username: this.username
+                    }));
+                };
+
+                this.socket.onmessage = async (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        console.log("WebSocket received message:", message);
+                        if (message.type === "nick_update") {
+                            if (message.username && message.username !== this.username) {
+                                this.peerName = message.username;
+                                this.terminal.print(`Peer connected: ${message.username}`, "info");
+                                if (this.cameraWidget) {
+                                    this.cameraWidget.setPeerName(message.username);
+                                }
+                            }
+                        } else if (
+                            message.type === "webrtc_offer" ||
+                            message.type === "webrtc_answer" ||
+                            message.type === "webrtc_ice" ||
+                            message.type === "webrtc_request" ||
+                            message.type === "webrtc_cancel"
+                        ) {
+                            if (this.cameraWidget) {
+                                await this.cameraWidget.handleSignaling(message);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error processing WebSocket message:", err);
+                    }
+                };
+
+                this.socket.onclose = () => {
+                    console.log("WebSocket disconnected. Retrying in 3 seconds...");
+                    setTimeout(() => this.connectSocket(), 3000);
+                };
+
+                this.socket.onerror = (err) => {
+                    console.error("WebSocket error:", err);
+                };
+            }
+
             async start() {
                 // document.body.style.display = "block"; // REMOVED: This was overriding display: flex and breaking layout
                 document.getElementById("terminal").style.display = "flex";
@@ -323,6 +1066,14 @@
                 document.getElementById("display-room-id").textContent = this.roomId;
                 document.querySelector(".prompt-container").style.display = "flex";
                 document.getElementById("input").focus();
+
+                this.peerName = "Peer";
+                
+                // Initialize custom draggable camera widget
+                this.cameraWidget = new CameraWidget(this);
+
+                // Connect to WebSocket signaling server
+                this.connectSocket();
 
                 await this.terminal.boot();
                 this.terminal.print(`SECURE CHANNEL: ${this.roomId}`, "system");
@@ -454,7 +1205,14 @@
             }
         }
 
-        window.onload = () => new App();
+        window.onload = () => {
+            const app = new App();
+            window.addEventListener("beforeunload", () => {
+                if (app.cameraWidget) {
+                    app.cameraWidget.stopCamera();
+                }
+            });
+        };
     </script>
 </body>
 </html>
