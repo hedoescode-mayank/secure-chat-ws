@@ -507,6 +507,17 @@
                 return this.app.username.toLowerCase() < this.peerName.toLowerCase();
             }
 
+            sendSignalingMessage(type, payload = {}) {
+                if (this.app.db) {
+                    this.app.db.ref(`rooms/${this.app.roomId}/webrtc`).push({
+                        sender: this.app.username,
+                        type: type,
+                        payload: payload,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+            }
+
             initPeerConnection() {
                 if (this.pc) return;
 
@@ -520,13 +531,10 @@
 
                 this.pc = new RTCPeerConnection(configuration);
 
-                // Send ICE candidates to remote peer
+                // Send ICE candidates to remote peer via Firebase
                 this.pc.onicecandidate = (event) => {
-                    if (event.candidate && this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
-                        this.app.socket.send(JSON.stringify({
-                            type: "webrtc_ice",
-                            candidate: event.candidate
-                        }));
+                    if (event.candidate) {
+                        this.sendSignalingMessage("webrtc_ice", { candidate: event.candidate });
                     }
                 };
 
@@ -546,12 +554,7 @@
                         this.makingOffer = true;
                         console.log("WebRTC: Negotiation needed, creating offer...");
                         await this.pc.setLocalDescription();
-                        if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
-                            this.app.socket.send(JSON.stringify({
-                                type: "webrtc_offer",
-                                offer: this.pc.localDescription
-                            }));
-                        }
+                        this.sendSignalingMessage("webrtc_offer", { offer: this.pc.localDescription });
                     } catch (err) {
                         console.error("WebRTC: Error during negotiation:", err);
                     } finally {
@@ -646,10 +649,8 @@
                     // Populate camera device selections dynamically
                     await this.populateDevices();
 
-                    // 5. Notify the peer that we've turned our camera on
-                    if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
-                        this.app.socket.send(JSON.stringify({ type: "webrtc_request" }));
-                    }
+                    // 5. Notify the peer that we've turned our camera on via Firebase
+                    this.sendSignalingMessage("webrtc_request");
 
                 } catch (err) {
                     console.error("Camera access failed: ", err);
@@ -696,10 +697,8 @@
                 this.toggleBtn.style.color = "var(--terminal-green)";
                 this.isCamOn = false;
 
-                // Send cancel signaling message
-                if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
-                    this.app.socket.send(JSON.stringify({ type: "webrtc_cancel" }));
-                }
+                // Send cancel signaling message via Firebase
+                this.sendSignalingMessage("webrtc_cancel");
 
                 this.checkPlaceholderVisibility();
             }
@@ -816,12 +815,7 @@
                             this.isSettingRemote = false;
 
                             await this.pc.setLocalDescription();
-                            if (this.app.socket && this.app.socket.readyState === WebSocket.OPEN) {
-                                this.app.socket.send(JSON.stringify({
-                                    type: "webrtc_answer",
-                                    answer: this.pc.localDescription
-                                }));
-                            }
+                            this.sendSignalingMessage("webrtc_answer", { answer: this.pc.localDescription });
                             break;
 
                         case "webrtc_answer":
@@ -1005,58 +999,43 @@
                 btn.addEventListener("click", proceed);
             }
 
-            connectSocket() {
-                const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-                const wsUrl = `${proto}//${window.location.host}`;
+            setupWebRTCSignaling() {
+                if (!this.db) return;
                 
-                this.terminal.print("Establishing WebSocket signaling tunnel...", "info");
-                this.socket = new WebSocket(wsUrl);
+                const webrtcRef = this.db.ref(`rooms/${this.roomId}/webrtc`);
+                
+                // Record session start timestamp to only process signaling packets from this session
+                const sessionStartTime = Date.now() - 5000;
 
-                this.socket.onopen = () => {
-                    console.log("WebSocket connected.");
-                    this.socket.send(JSON.stringify({
-                        type: "join",
-                        roomId: this.roomId,
-                        username: this.username
-                    }));
-                };
-
-                this.socket.onmessage = async (event) => {
+                webrtcRef.on("child_added", async (snapshot) => {
                     try {
-                        const message = JSON.parse(event.data);
-                        console.log("WebSocket received message:", message);
-                        if (message.type === "nick_update") {
-                            if (message.username && message.username !== this.username) {
-                                this.peerName = message.username;
-                                this.terminal.print(`Peer connected: ${message.username}`, "info");
-                                if (this.cameraWidget) {
-                                    this.cameraWidget.setPeerName(message.username);
-                                }
-                            }
-                        } else if (
-                            message.type === "webrtc_offer" ||
-                            message.type === "webrtc_answer" ||
-                            message.type === "webrtc_ice" ||
-                            message.type === "webrtc_request" ||
-                            message.type === "webrtc_cancel"
-                        ) {
+                        const message = snapshot.val();
+                        if (!message || message.sender === this.username) return;
+
+                        // Skip old messages from previous sessions
+                        if (message.timestamp && message.timestamp < sessionStartTime) return;
+
+                        console.log("Firebase WebRTC signaling received:", message.type, message);
+
+                        if (message.type === "webrtc_request") {
+                            // Sync peer name
+                            this.peerName = message.sender;
                             if (this.cameraWidget) {
-                                await this.cameraWidget.handleSignaling(message);
+                                this.cameraWidget.setPeerName(message.sender);
                             }
                         }
+
+                        if (this.cameraWidget) {
+                            await this.cameraWidget.handleSignaling({
+                                type: message.type,
+                                from: message.sender,
+                                ...message.payload
+                            });
+                        }
                     } catch (err) {
-                        console.error("Error processing WebSocket message:", err);
+                        console.error("Error processing Firebase signaling message:", err);
                     }
-                };
-
-                this.socket.onclose = () => {
-                    console.log("WebSocket disconnected. Retrying in 3 seconds...");
-                    setTimeout(() => this.connectSocket(), 3000);
-                };
-
-                this.socket.onerror = (err) => {
-                    console.error("WebSocket error:", err);
-                };
+                });
             }
 
             async start() {
@@ -1071,9 +1050,6 @@
                 
                 // Initialize custom draggable camera widget
                 this.cameraWidget = new CameraWidget(this);
-
-                // Connect to WebSocket signaling server
-                this.connectSocket();
 
                 await this.terminal.boot();
                 this.terminal.print(`SECURE CHANNEL: ${this.roomId}`, "system");
@@ -1092,6 +1068,9 @@
                         
                         this.setupDeleteListeners();
                         this.setupFirebase();
+                        
+                        // Listen to WebRTC signaling messages via Firebase Realtime Database
+                        this.setupWebRTCSignaling();
                     }
                 } catch (e) { this.terminal.print("Network Error: Offline Mode Active", "error"); }
 
