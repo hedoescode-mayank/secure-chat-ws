@@ -1024,25 +1024,20 @@
                 
                 const webrtcRef = this.db.ref(`rooms/${this.roomId}/webrtc`);
                 
-                // Get server time offset to handle clock drift
-                let serverTimeOffset = 0;
-                this.db.ref(".info/serverTimeOffset").on("value", (snap) => {
-                    serverTimeOffset = snap.val() || 0;
+                // Track if we have finished loading initial pre-existing signaling data
+                let initialDataLoaded = false;
+                webrtcRef.once("value").then(() => {
+                    initialDataLoaded = true;
                 });
 
                 webrtcRef.on("child_added", async (snapshot) => {
+                    if (!initialDataLoaded) return; // Ignore stale historical signaling messages
+                    
                     try {
                         const message = snapshot.val();
                         if (!message || message.sender === this.username) return;
 
-                        // Calculate the message age in milliseconds using the estimated server time
-                        const estimatedServerTime = Date.now() + serverTimeOffset;
-                        const ageMs = estimatedServerTime - message.timestamp;
-
-                        // Skip old messages from previous sessions (older than 10 seconds)
-                        if (ageMs > 10000) return;
-
-                        console.log("Firebase WebRTC signaling received:", message.type, message);
+                        console.log("Firebase WebRTC signaling received in real-time:", message.type, message);
 
                         if (message.type === "webrtc_request") {
                             // Sync peer name
@@ -1093,15 +1088,27 @@
                         presenceRef.set({ online: true });
                         presenceRef.onDisconnect().remove();
 
-                        // Listen for presence to sync peer name
+                        // Listen for presence to sync peer name and auto-negotiate if camera is already active
                         const presenceListRef = this.db.ref(`rooms/${this.roomId}/presence`);
+                        let currentPeers = [];
                         presenceListRef.on("value", (snapshot) => {
                             const users = snapshot.val() || {};
                             const otherUsers = Object.keys(users).filter(u => u !== this.username);
+                            
+                            // Check if a new peer has joined
+                            const newPeerJoined = otherUsers.some(u => !currentPeers.includes(u));
+                            currentPeers = otherUsers;
+
                             if (otherUsers.length > 0) {
                                 this.peerName = otherUsers[0];
                                 if (this.cameraWidget) {
                                     this.cameraWidget.setPeerName(this.peerName);
+                                    
+                                    // If our camera is already on, and a new peer just joined, send a fresh request to connect
+                                    if (newPeerJoined && this.cameraWidget.isCamOn) {
+                                        console.log("New peer joined while our camera is active. Sending fresh WebRTC request.");
+                                        this.cameraWidget.sendSignalingMessage("webrtc_request");
+                                    }
                                 }
                             }
                         });
