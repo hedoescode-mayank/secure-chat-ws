@@ -534,6 +534,20 @@
                 }
             }
 
+            async startNegotiation() {
+                if (!this.pc) return;
+                try {
+                    this.makingOffer = true;
+                    console.log("WebRTC: Manually initiating negotiation, creating offer...");
+                    await this.pc.setLocalDescription();
+                    this.sendSignalingMessage("webrtc_offer", { offer: this.pc.localDescription.toJSON() });
+                } catch (err) {
+                    console.error("WebRTC: Error manually initiating negotiation:", err);
+                } finally {
+                    this.makingOffer = false;
+                }
+            }
+
             initPeerConnection() {
                 if (this.pc) return;
 
@@ -550,7 +564,7 @@
                 // Send ICE candidates to remote peer via Firebase
                 this.pc.onicecandidate = (event) => {
                     if (event.candidate) {
-                        this.sendSignalingMessage("webrtc_ice", { candidate: event.candidate });
+                        this.sendSignalingMessage("webrtc_ice", { candidate: event.candidate.toJSON() });
                     }
                 };
 
@@ -570,7 +584,7 @@
                         this.makingOffer = true;
                         console.log("WebRTC: Negotiation needed, creating offer...");
                         await this.pc.setLocalDescription();
-                        this.sendSignalingMessage("webrtc_offer", { offer: this.pc.localDescription });
+                        this.sendSignalingMessage("webrtc_offer", { offer: this.pc.localDescription.toJSON() });
                     } catch (err) {
                         console.error("WebRTC: Error during negotiation:", err);
                     } finally {
@@ -834,7 +848,7 @@
                             this.isSettingRemote = false;
 
                             await this.pc.setLocalDescription();
-                            this.sendSignalingMessage("webrtc_answer", { answer: this.pc.localDescription });
+                            this.sendSignalingMessage("webrtc_answer", { answer: this.pc.localDescription.toJSON() });
                             break;
 
                         case "webrtc_answer":
@@ -1108,6 +1122,13 @@
                                     if (newPeerJoined && this.cameraWidget.isCamOn) {
                                         console.log("New peer joined while our camera is active. Sending fresh WebRTC request.");
                                         this.cameraWidget.sendSignalingMessage("webrtc_request");
+                                        
+                                        // Wait a brief moment for the late-joining peer's connection to initialize, then manually trigger negotiation/offer
+                                        setTimeout(() => {
+                                            if (this.cameraWidget && this.cameraWidget.isCamOn) {
+                                                this.cameraWidget.startNegotiation();
+                                            }
+                                        }, 1000);
                                     }
                                 }
                             }
