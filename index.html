@@ -518,6 +518,22 @@
                 }
             }
 
+            closePeerConnection() {
+                if (this.pc) {
+                    console.log("Closing RTCPeerConnection");
+                    this.pc.onicecandidate = null;
+                    this.pc.ontrack = null;
+                    this.pc.onnegotiationneeded = null;
+                    this.pc.onconnectionstatechange = null;
+                    try {
+                        this.pc.close();
+                    } catch (e) {
+                        console.error("Error closing peer connection:", e);
+                    }
+                    this.pc = null;
+                }
+            }
+
             initPeerConnection() {
                 if (this.pc) return;
 
@@ -566,6 +582,7 @@
                     console.log(`WebRTC Connection State: ${this.pc.connectionState}`);
                     if (this.pc.connectionState === "disconnected" || this.pc.connectionState === "failed") {
                         this.handleRemoteStreamEnded();
+                        this.closePeerConnection();
                     }
                 };
             }
@@ -684,13 +701,8 @@
                 // Reset device select dropdown option list
                 this.deviceSelect.innerHTML = '<option value="">[SELECT CAMERA]</option>';
 
-                // Remove tracks from RTCPeerConnection
-                if (this.pc) {
-                    const senders = this.pc.getSenders();
-                    senders.forEach(sender => {
-                        this.pc.removeTrack(sender);
-                    });
-                }
+                // Close and clean up peer connection completely
+                this.closePeerConnection();
 
                 this.toggleBtn.textContent = "[CAM ON]";
                 this.toggleBtn.style.borderColor = "var(--terminal-green)";
@@ -699,6 +711,13 @@
 
                 // Send cancel signaling message via Firebase
                 this.sendSignalingMessage("webrtc_cancel");
+
+                // Clear the webrtc signaling queue to keep DB clean
+                setTimeout(() => {
+                    if (this.app.db) {
+                        this.app.db.ref(`rooms/${this.app.roomId}/webrtc`).remove();
+                    }
+                }, 1000);
 
                 this.checkPlaceholderVisibility();
             }
@@ -840,6 +859,7 @@
                         case "webrtc_cancel":
                             console.log("WebRTC: Received webrtc_cancel from peer");
                             this.handleRemoteStreamEnded();
+                            this.closePeerConnection();
                             break;
                     }
                 } catch (err) {
@@ -1004,16 +1024,23 @@
                 
                 const webrtcRef = this.db.ref(`rooms/${this.roomId}/webrtc`);
                 
-                // Record session start timestamp to only process signaling packets from this session
-                const sessionStartTime = Date.now() - 5000;
+                // Get server time offset to handle clock drift
+                let serverTimeOffset = 0;
+                this.db.ref(".info/serverTimeOffset").on("value", (snap) => {
+                    serverTimeOffset = snap.val() || 0;
+                });
 
                 webrtcRef.on("child_added", async (snapshot) => {
                     try {
                         const message = snapshot.val();
                         if (!message || message.sender === this.username) return;
 
-                        // Skip old messages from previous sessions
-                        if (message.timestamp && message.timestamp < sessionStartTime) return;
+                        // Calculate the message age in milliseconds using the estimated server time
+                        const estimatedServerTime = Date.now() + serverTimeOffset;
+                        const ageMs = estimatedServerTime - message.timestamp;
+
+                        // Skip old messages from previous sessions (older than 10 seconds)
+                        if (ageMs > 10000) return;
 
                         console.log("Firebase WebRTC signaling received:", message.type, message);
 
@@ -1065,6 +1092,19 @@
                         const presenceRef = this.db.ref(`rooms/${this.roomId}/presence/${this.username}`);
                         presenceRef.set({ online: true });
                         presenceRef.onDisconnect().remove();
+
+                        // Listen for presence to sync peer name
+                        const presenceListRef = this.db.ref(`rooms/${this.roomId}/presence`);
+                        presenceListRef.on("value", (snapshot) => {
+                            const users = snapshot.val() || {};
+                            const otherUsers = Object.keys(users).filter(u => u !== this.username);
+                            if (otherUsers.length > 0) {
+                                this.peerName = otherUsers[0];
+                                if (this.cameraWidget) {
+                                    this.cameraWidget.setPeerName(this.peerName);
+                                }
+                            }
+                        });
                         
                         this.setupDeleteListeners();
                         this.setupFirebase();
