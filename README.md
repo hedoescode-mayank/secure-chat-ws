@@ -17,6 +17,15 @@ A professional-grade, CLI-based encrypted chat application leveraging Firebase R
   - **Key Derivation**: PBKDF2 with unique salts per room.
   - **Message Integrity**: Built-in authentication tags for each message.
 
+## WebRTC & Serverless Architecture (Recent Changes)
+
+### Serverless WebRTC Signaling Migration
+The application's backend architecture was successfully migrated from a stateful Node.js WebSocket backend (using Socket.io) to a serverless Publish-Subscribe model utilizing the **Firebase Realtime Database**. This shift was prompted by the need for deployment compatibility with serverless environments (such as Vercel), which do not support long-lived, stateful TCP WebSocket connections. 
+
+In this serverless model:
+- **State Brokerage**: Firebase acts as an ephemeral message bus for signaling. Clients register observers on database paths specific to their rooms (e.g., `rooms/{roomId}/webrtc`).
+- **Pub/Sub Mechanism**: When a peer writes a signaling payload (offers, answers, ICE candidates) to the database, Firebase automatically broadcasts the update to all subscribed peers in real-time, eliminating the need for a persistent custom Node.js server.
+
 ## Installation & Setup
 1. **Clone the Repository**:
    ```bash
