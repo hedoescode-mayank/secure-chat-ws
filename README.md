@@ -42,6 +42,15 @@ A major challenge with static, serverless WebRTC signaling is handling peers tha
 - **The Solution**: We integrated a presence-triggered renegotiation loop. When User A detects a new user registration via the Firebase presence list, User A's client sends a `webrtc_request` target payload to the database.
 - **State Tear-Down & Re-negotiation**: Upon receiving the request, User B (or the newly joined peer) tears down any existing peer connection state, re-allocates local media assets, and triggers a clean execution of `startNegotiation()` to negotiate a fresh session description.
 
+### Technical Challenges & Edge Case Resolutions
+Several edge cases were solved during the transition to Firebase signaling to achieve server-grade reliability:
+1. **The Signaling Sync Barrier (Stale Data Filtering)**:
+   - *Problem*: Because Firebase database values persist, a user joining a room could download stale signaling payloads (e.g., old offers, stale ICE candidates) written hours ago, causing the WebRTC client to fail.
+   - *Resolution*: We implemented a synchronization barrier. Before listening to live database events via `.on('child_added')`, we fetch a single snapshot of all historical records in the room using `.once('value')` and set an `initialDataLoaded` flag. The live listener discards any payload received before this flag is toggled to true, filtering out all historical signaling events.
+2. **Firebase Prototype Serialization Fix**:
+   - *Problem*: WebRTC interfaces like `RTCSessionDescription` and `RTCIceCandidate` contain internal prototype getter methods. Firebase's database updater does not enumerate prototype getters, sending empty `{}` objects, causing the receiver to throw a `TypeError` when calling `setRemoteDescription()`.
+   - *Resolution*: We explicitly call the native `.toJSON()` serialization helper on WebRTC objects before writing them to Firebase (e.g., `offer: this.pc.localDescription.toJSON()`), forcing the browser to compile properties into a plain JavaScript object.
+
 ## Installation & Setup
 1. **Clone the Repository**:
    ```bash
