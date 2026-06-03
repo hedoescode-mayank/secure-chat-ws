@@ -51,6 +51,15 @@ Several edge cases were solved during the transition to Firebase signaling to ac
    - *Problem*: WebRTC interfaces like `RTCSessionDescription` and `RTCIceCandidate` contain internal prototype getter methods. Firebase's database updater does not enumerate prototype getters, sending empty `{}` objects, causing the receiver to throw a `TypeError` when calling `setRemoteDescription()`.
    - *Resolution*: We explicitly call the native `.toJSON()` serialization helper on WebRTC objects before writing them to Firebase (e.g., `offer: this.pc.localDescription.toJSON()`), forcing the browser to compile properties into a plain JavaScript object.
 
+### Video UI Interface & Hardware Resource Management
+To ensure a premium user experience and prevent local resource leaks, the WebRTC implementation includes the following mechanisms:
+- **Draggable Dual-Video Layout**: The terminal interface supports picture-in-picture draggable views for video sharing. Users can drag the self-view/peer-view streams around the workspace while the underlying flexbox layout bounds adapt dynamically.
+- **Multi-Camera Source Selection**: An interactive camera selection dropdown allows toggling between different hardware camera sources dynamically without resetting the active text chat session.
+- **Strict Media Resource Cleanup**: WebRTC requires browser locks on camera and microphone hardware. In the client lifecycle:
+  - When closing a peer connection or turning off the camera, the system severs all event bindings (`pc.onicecandidate = null`, `pc.ontrack = null`, etc.).
+  - It invokes `track.stop()` on all active media tracks, releasing the webcam hardware locks.
+  - It calls `pc.close()`, which severs the sockets, permitting the browser's engine to garbage-collect the `RTCPeerConnection` instance.
+
 ## Installation & Setup
 1. **Clone the Repository**:
    ```bash
