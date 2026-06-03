@@ -26,6 +26,16 @@ In this serverless model:
 - **State Brokerage**: Firebase acts as an ephemeral message bus for signaling. Clients register observers on database paths specific to their rooms (e.g., `rooms/{roomId}/webrtc`).
 - **Pub/Sub Mechanism**: When a peer writes a signaling payload (offers, answers, ICE candidates) to the database, Firebase automatically broadcasts the update to all subscribed peers in real-time, eliminating the need for a persistent custom Node.js server.
 
+### WebRTC Perfect Negotiation & Glare Resolution
+In a peer-to-peer setup, if both users try to initiate camera sharing at the same time, their browsers will simultaneously generate session Offers. This collision is known as **WebRTC Glare** and crashes the standard WebRTC signaling state machine.
+
+To prevent glare, SecureChat-OS implements the **Perfect Negotiation** pattern:
+- **Polite & Impolite Peer Roles**: Roles are dynamically and deterministically assigned to each peer upon connecting. The assignment compares usernames alphabetically:
+  ```js
+  const isPolite = this.app.username.toLowerCase() < this.peerName.toLowerCase();
+  ```
+- **Collision Handling**: If a signaling conflict occurs, the *Polite Peer* immediately backs off, aborts its own Offer, accepts the incoming Offer, and sends a session Answer. The *Impolite Peer* ignores the collision and forces its own Offer to be processed. This resolves glare deterministically without dropping the media session.
+
 ## Installation & Setup
 1. **Clone the Repository**:
    ```bash
