@@ -36,6 +36,12 @@ To prevent glare, SecureChat-OS implements the **Perfect Negotiation** pattern:
   ```
 - **Collision Handling**: If a signaling conflict occurs, the *Polite Peer* immediately backs off, aborts its own Offer, accepts the incoming Offer, and sends a session Answer. The *Impolite Peer* ignores the collision and forces its own Offer to be processed. This resolves glare deterministically without dropping the media session.
 
+### Late-Joiner Connection Lifecycle Mechanics
+A major challenge with static, serverless WebRTC signaling is handling peers that join the room after a session has already started:
+- **The Problem**: If User A is already streaming their webcam and User B joins the room later, User B misses the initial signaling offer broadcasted by User A.
+- **The Solution**: We integrated a presence-triggered renegotiation loop. When User A detects a new user registration via the Firebase presence list, User A's client sends a `webrtc_request` target payload to the database.
+- **State Tear-Down & Re-negotiation**: Upon receiving the request, User B (or the newly joined peer) tears down any existing peer connection state, re-allocates local media assets, and triggers a clean execution of `startNegotiation()` to negotiate a fresh session description.
+
 ## Installation & Setup
 1. **Clone the Repository**:
    ```bash
