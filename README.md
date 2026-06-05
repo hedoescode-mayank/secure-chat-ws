@@ -117,3 +117,5 @@ SecureChat-OS follows a "Zero Trust" model. We believe that security is not a fe
 We welcome contributions from the security community. Please see our [Security Policy](SECURITY.md) for reporting vulnerabilities.
 
 - **Mayank** (@hedoescode-mayank) - Lead Architect & Security Researcher
+
+- TURN server integration for robust WebRTC connections.
