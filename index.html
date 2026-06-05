@@ -568,6 +568,7 @@
                 // Send ICE candidates to remote peer via Firebase
                 this.pc.onicecandidate = (event) => {
                     if (event.candidate) {
+                        console.log("WebRTC: Gathering ICE candidate...");
                         this.sendSignalingMessage("webrtc_ice", { candidate: event.candidate.toJSON() });
                     }
                 };
