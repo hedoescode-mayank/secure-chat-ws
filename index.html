@@ -474,6 +474,8 @@
                 this.makingOffer = false;
                 this.ignoreOffer = false;
                 this.isSettingRemote = false;
+                this._pendingCandidates = [];
+                this._cachedIceServers = null;
 
                 this.initDrag();
                 this.initLocalVideoDrag();
@@ -561,21 +563,51 @@
                 }
             }
 
-            initPeerConnection() {
+            async fetchTurnCredentials() {
+                if (this._cachedIceServers) return this._cachedIceServers;
+
+                // Use multiple STUN + TURN servers for maximum mobile compatibility
+                // TURN is REQUIRED for mobile devices behind carrier-grade NAT
+                this._cachedIceServers = [
+                    // Google STUN servers (free, always working)
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "stun:stun1.l.google.com:19302" },
+                    { urls: "stun:stun2.l.google.com:19302" },
+                    { urls: "stun:stun3.l.google.com:19302" },
+                    { urls: "stun:stun4.l.google.com:19302" },
+                    // Metered STUN (free)
+                    { urls: "stun:stun.relay.metered.ca:80" },
+                    // Metered TURN servers via Open Relay (free 20GB/month)
+                    { urls: "turn:global.relay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turn:global.relay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turn:global.relay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+                    // Static auth Metered TURN (alternative)
+                    { urls: "turn:staticauth.openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turn:staticauth.openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+                    { urls: "turn:staticauth.openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+                ];
+
+                console.log("WebRTC: Using", this._cachedIceServers.length, "ICE servers (STUN + TURN)");
+                return this._cachedIceServers;
+            }
+
+            async initPeerConnection() {
                 if (this.pc) return;
 
-                console.log("Initializing RTCPeerConnection");
-                console.log("Initializing RTCPeerConnection with TURN support");
-                // WebRTC configuration with STUN and TURN for NAT traversal
+                console.log("WebRTC: Initializing RTCPeerConnection...");
+                this.app.terminal.print("WebRTC: Fetching TURN credentials...", "info");
+
+                const iceServers = await this.fetchTurnCredentials();
+
                 const configuration = {
-                    iceServers: [
-                        { urls: "stun:stun.l.google.com:19302" },
-                        { urls: "stun:stun1.l.google.com:19302" },
-                        { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-                        { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-                        { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
-                    ]
+                    iceServers: iceServers,
+                    iceCandidatePoolSize: 10
                 };
+
+                console.log("WebRTC: Using ICE servers:", JSON.stringify(iceServers.map(s => s.urls)));
+                this.app.terminal.print(`WebRTC: Got ${iceServers.length} ICE servers. Connecting...`, "info");
 
                 this.pc = new RTCPeerConnection(configuration);
 
@@ -645,8 +677,10 @@
                 };
 
                 this.pc.onconnectionstatechange = () => {
-                    console.log(`WebRTC Connection State: ${this.pc.connectionState}`);
-                    if (this.pc.connectionState === "connected") {
+                    const state = this.pc ? this.pc.connectionState : 'unknown';
+                    console.log(`WebRTC Connection State: ${state}`);
+                    this.app.terminal.print(`WebRTC: Connection state → ${state.toUpperCase()}`, state === 'connected' ? 'system' : 'info');
+                    if (state === "connected") {
                         // Workaround for Android/Mobile black screen: Re-assign srcObject after connection is fully established
                         if (this.remoteVideo && this.remoteVideo.srcObject) {
                             const stream = this.remoteVideo.srcObject;
@@ -657,9 +691,17 @@
                             }, 50);
                         }
                     }
-                    if (this.pc.connectionState === "disconnected" || this.pc.connectionState === "failed") {
+                    if (state === "disconnected" || state === "failed") {
                         this.handleRemoteStreamEnded();
                         this.closePeerConnection();
+                    }
+                };
+
+                this.pc.oniceconnectionstatechange = () => {
+                    if (this.pc) {
+                        const iceState = this.pc.iceConnectionState;
+                        console.log(`WebRTC ICE Connection State: ${iceState}`);
+                        this.app.terminal.print(`WebRTC: ICE state → ${iceState.toUpperCase()}`, 'info');
                     }
                 };
             }
@@ -712,8 +754,9 @@
                     this.toggleBtn.textContent = "[INITIALIZING...]";
                     this.toggleBtn.disabled = true;
 
+                    // Use 'ideal' instead of exact for mobile compatibility
                     const constraints = {
-                        video: deviceId ? { deviceId: { exact: deviceId }, width: 640, height: 480 } : { width: 640, height: 480 },
+                        video: deviceId ? { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } } : { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
                         audio: false
                     };
 
@@ -725,7 +768,7 @@
                     this.localVideo.style.display = "block";
                     
                     // 3. Make sure RTCPeerConnection is initialized
-                    this.initPeerConnection();
+                    await this.initPeerConnection();
 
                     // 4. Add tracks to peer connection
                     this.stream.getTracks().forEach(track => {
@@ -849,7 +892,7 @@
 
                     // 1. Get new media stream with explicit deviceId first
                     const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: { deviceId: { exact: deviceId }, width: 640, height: 480 },
+                        video: { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } },
                         audio: false
                     });
 
@@ -892,7 +935,7 @@
                         case "webrtc_request":
                             console.log("WebRTC: Received webrtc_request from peer. My cam is ON:", this.isCamOn);
                             // Initialize our peer connection
-                            this.initPeerConnection();
+                            await this.initPeerConnection();
 
                             // If WE have our camera ON, we need to:
                             // 1. Add our tracks to the peer connection (so peer gets our stream)
@@ -914,7 +957,7 @@
 
                         case "webrtc_offer":
                             console.log("WebRTC: Received offer from peer");
-                            this.initPeerConnection();
+                            await this.initPeerConnection();
                             
                             const offerCollision = (this.makingOffer || this.pc.signalingState !== "stable");
                             this.ignoreOffer = !this.isPolite && offerCollision;
@@ -978,7 +1021,7 @@
                                 if (!this._pendingCandidates) this._pendingCandidates = [];
                                 this._pendingCandidates.push(message.candidate);
                             } else {
-                                this.initPeerConnection();
+                                await this.initPeerConnection();
                                 try {
                                     await this.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
                                 } catch (err) {
