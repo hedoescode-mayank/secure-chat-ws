@@ -627,6 +627,17 @@
 
                 this.pc.onconnectionstatechange = () => {
                     console.log(`WebRTC Connection State: ${this.pc.connectionState}`);
+                    if (this.pc.connectionState === "connected") {
+                        // Workaround for Android/Mobile black screen: Re-assign srcObject after connection is fully established
+                        if (this.remoteVideo && this.remoteVideo.srcObject) {
+                            const stream = this.remoteVideo.srcObject;
+                            this.remoteVideo.srcObject = null;
+                            setTimeout(() => {
+                                this.remoteVideo.srcObject = stream;
+                                this.remoteVideo.play().catch(e => console.error("Play error after reconnect:", e));
+                            }, 50);
+                        }
+                    }
                     if (this.pc.connectionState === "disconnected" || this.pc.connectionState === "failed") {
                         this.handleRemoteStreamEnded();
                         this.closePeerConnection();
