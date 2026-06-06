@@ -582,20 +582,33 @@
                 // Handle incoming remote streams
                 this.pc.ontrack = (event) => {
                     console.log("WebRTC: Received remote track", event);
+                    let inboundStream;
                     if (event.streams && event.streams[0]) {
-                        this.remoteVideo.srcObject = event.streams[0];
+                        inboundStream = event.streams[0];
                     } else {
                         if (!this.remoteStream) {
                             this.remoteStream = new MediaStream();
                         }
                         this.remoteStream.addTrack(event.track);
-                        this.remoteVideo.srcObject = this.remoteStream;
+                        inboundStream = this.remoteStream;
                     }
+                    
+                    // Force muted attribute to bypass strict iOS autoplay policies
+                    this.remoteVideo.muted = true;
+                    this.remoteVideo.setAttribute("muted", "true");
+                    this.remoteVideo.setAttribute("playsinline", "true");
+                    
+                    this.remoteVideo.srcObject = inboundStream;
                     this.remoteVideo.style.display = "block";
                     this.placeholder.style.display = "none";
                     
-                    // Explicitly call play() for mobile browsers (e.g. iOS Safari) which require it
-                    this.remoteVideo.play().catch(e => console.error("WebRTC Video Play Error:", e));
+                    const tryPlay = () => {
+                        this.remoteVideo.play().catch(e => console.error("WebRTC Video Play Error:", e));
+                    };
+
+                    this.remoteVideo.onloadedmetadata = tryPlay;
+                    event.track.onunmute = tryPlay;
+                    tryPlay();
                 };
 
                 // Polite peer negotiation glare handling
